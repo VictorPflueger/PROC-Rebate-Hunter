@@ -1,0 +1,241 @@
+# TECH_NOTES — verified facts and build decisions
+
+Rebate Hunter calls the Claude API and three open-data APIs directly from the browser. Every external detail the code depends on is recorded here with its source and the date it was verified. If a fact changes, update this file first, then `js/config.js`.
+
+**Basis.** Version **7.0.0**, 14 October 2026. Rebate Hunter runs on the Navigator's browser client, agent loop, run-event bus and design system (Navigator 1.1.0). Sections 1–3 (Claude models, web search, the Messages API from the browser) apply unchanged: the code is the same, and those facts were verified for the Navigator on 12 October 2026 against `platform.claude.com/docs` and live CORS probes. Section 4 (open data) was verified for Rebate Hunter on 14 October 2026 through a documentation fetcher, because this build environment's network allow-list blocks the three hosts. Sections 7–12 record the rebate engine, the decisions, the guardrails, the simulation format, the verification log and the acceptance checklist.
+
+---
+
+## 1. Claude models and token prices (cost meter inputs)
+
+Source: Models overview and Pricing pages, `https://platform.claude.com/docs/en/about-claude/models/overview`, `https://platform.claude.com/docs/en/about-claude/pricing` (verified 12 Oct 2026).
+
+| Label | API model ID | Input $/MTok | Output $/MTok | 5-min cache write $/MTok | Cache read $/MTok | Context | Max output |
+|---|---|---|---|---|---|---|---|
+| Haiku 5.5 — fast, cheapest | `claude-haiku-5-5` | 0.10 (prompt ≤ 100k tok) / 0.50 (> 100k) | 0.50 / 2.50 | 0.125 / 0.625 | 0.01 / 0.05 | 1M | 128K |
+| **Sonnet 5.5 — default** | `claude-sonnet-5-5` | 2.00 | 10.00 | 2.50 | 0.10 | 1M | 128K |
+| Opus 5.5 — deepest | `claude-opus-5-5` | 4.00 | 20.00 | 5.00 | 0.20 | 1M | 128K |
+
+- Haiku 5.5 is priced in two tiers by prompt size. The cost meter picks the tier per request from `input_tokens + cache_creation_input_tokens + cache_read_input_tokens`.
+- Adding any tool adds a fixed system overhead of 286 input tokens (`tool_choice: auto`); it is included in the `usage` the API returns.
+- The Models API (`GET /v1/models`) is free. Diagnostics and the key dialog use it to validate a key and confirm the three model IDs.
+- **USD → EUR.** The API bills in USD; the cost meter converts at a fixed **1 USD = 0.894 EUR** (`FX_USD_EUR` in `js/config.js`; ECB reference rate of 12 Oct 2026).
+
+**Cost per run.** Not yet measured with a real key for Rebate Hunter. Its system prompt (about 1,650 words) and 20 client tool schemas plus web search (about 13,300 characters) are of the same order as the Navigator's, whose first real Sonnet run measured **€0.20**; expect €0.15–0.40 on Sonnet, €0.02–0.06 on Haiku and €0.35–0.90 on Opus. The cost meter shows the real figure on every run, and the audit export holds the usage of every model call.
+
+## 2. Server-side web search tool
+
+Source: `https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool` (verified 12 Oct 2026).
+
+- **Tool:** `{ "type": "web_search_20250305", "name": "web_search", "max_uses": 5 }`. No domain filters and no user location.
+- **Responses:** `server_tool_use` (`{id: "srvtoolu_…", name: "web_search", input: {query}}`) and `web_search_tool_result` (`web_search_result` items with `url`, `title`, `page_age`, `encrypted_content`, or an error object with `error_code`). Errors arrive with HTTP 200 and are not billed.
+- **Price:** $10 per 1,000 searches plus tokens; usage in `usage.server_tool_use.web_search_requests`.
+- **Organisation switch:** if an admin disabled web search, any request containing the tool fails with HTTP 400 `invalid_request_error`. The agent removes the tool, rebuilds the system prompt, shows a banner and carries on with the register and the open-data tools. Unlike the Navigator's Live scan, Rebate Hunter's **Live sweep stays available**: its evidence (register, GLEIF, Wikidata, ECB rates) needs no web search.
+- **`pause_turn`** is resent unchanged; when web search and a client tool share a turn, the follow-up user message contains only `tool_result` blocks.
+
+## 3. Messages API from the browser (CORS, headers, protocol)
+
+Sources: API overview, Errors, Streaming, Handle tool calls, Handling stop reasons, Thinking, Effort, Prompt caching (all under `platform.claude.com/docs`), and live CORS probes for the Navigator on 12 Oct 2026. `js/anthropic.js` and `js/agent.js` are shared with the Navigator.
+
+**Request.** `POST https://api.anthropic.com/v1/messages` with `x-api-key` (from session storage only), `anthropic-version: 2023-06-01`, `content-type: application/json` and `anthropic-dangerous-direct-browser-access: true`. Without that last header the API's 401 carries no `access-control-allow-origin` and the browser blocks it: **the header is mandatory**. `GET /v1/models` with the header is CORS-enabled too. Keys spanning several workspaces need `anthropic-workspace-id`, which the app does not send; a workspace error is answered with "use a key scoped to a single workspace". Spend limits are set per workspace, not per key.
+
+**Parameters sent.**
+
+```json
+{
+  "model": "claude-sonnet-5-5",
+  "max_tokens": 16000,
+  "stream": true,
+  "cache_control": { "type": "ephemeral" },
+  "thinking": { "type": "adaptive", "display": "summarized" },
+  "output_config": { "effort": "medium" },
+  "system": "…",
+  "tools": [ … 20 client tools, plus web_search first … ],
+  "tool_choice": { "type": "auto" },
+  "messages": [ … ]
+}
+```
+
+- Automatic prompt caching on every request; thinking summaries shown as collapsed "Reasoning" entries; effort medium on Haiku and Sonnet, high on Opus; `tool_choice` always `auto`.
+- Every assistant `content` array, thinking blocks and signatures included, is passed back **unchanged**. Recorded runs are stored as UI events, never as API transcripts (signatures only work in the account that produced them).
+- Streaming: SSE over `fetch`, LF or CRLF split anywhere, cumulative usage in `message_delta`, mid-stream `error` events raised as API errors, a body without a stop reason treated as an interrupted connection, 90 s idle limit including the wait for headers.
+- Stop reasons: `tool_use` → run client tools (independent `erp_*` and `open_*` calls in parallel); `pause_turn` → resend; `max_tokens` with a cut-off tool call → discard and retry once at 1.5× (16,000 → 24,000 on Sonnet), the retry reusing the step's message ids so the discarded narration is replaced on screen; `end_turn` before the summary → at most two visible nudges, then **Stopped**; `refusal` and `model_context_window_exceeded` → stop cleanly.
+- Errors: 401 removes the key; 429 honours `retry-after` (spend-limit 429s are not retried); 5xx, 529, network errors and cut streams retry twice (1.5 s, then 4 s), then stop with a message pointing to Diagnostics and Simulation; 400s naming `output_config`/effort, `display`, `thinking` or `cache_control` drop that field and retry.
+
+## 4. Open-data endpoints (keyless)
+
+Verified on 14 Oct 2026 through a documentation fetcher (this environment's network allow-list blocks the hosts, so CORS headers could not be probed directly). Every `open_*` tool resolves rather than throws: on failure it returns `{error, fallback_hint: "use web_search"}`, and a 4xx caused by the tool's own input returns an error without the hint.
+
+| Source | Endpoints used | Verified response shape | Browser CORS | Terms and limits |
+|---|---|---|---|---|
+| **GLEIF** API v1 | `https://api.gleif.org/api/v1/lei-records?filter[fulltext]={name}[&filter[entity.legalAddress.country]={CC}]&page[size]=8`; `…/lei-records/{lei}`; `…/lei-records/{lei}/ultimate-parent`; `…/lei-records/{lei}/ultimate-parent-relationship` | JSON:API. Record: `data.attributes.{lei, entity.{legalName.name, legalAddress.{city, country}, headquartersAddress, status}, registration.status}`. Search: `data[]`, `meta.pagination.total`. Relationship: `data.attributes.relationship.{startNode, endNode, type, status, periods[{startDate, endDate, type}]}` with types `RELATIONSHIP_PERIOD` and `ACCOUNTING_PERIOD`. **No parent reported → HTTP 404**, which the tool treats as an answer, not a failure | **Not documented** → Diagnostics | Free; LEI data CC0; **60 requests per minute per user** (API documentation, `https://documenter.getpostman.com/view/7679680/SVYrrxuU`). `open_gleif_parent` makes three requests per call |
+| **Wikidata** Action API | `https://www.wikidata.org/w/api.php?action=wbsearchentities&search={name}&language=en&type=item&limit=3&format=json&origin=*`; `…?action=wbgetentities&ids={Q}&props=labels%7Cdescriptions%7Cclaims&languages=en&format=json&origin=*`; a second `wbgetentities` for the labels of the owners | `search[].{id, label, description}`; `entities.{Q}.claims.{P127, P749, P1278}[].mainsnak.datavalue.value`, qualifiers `P580`/`P582` with `time` values such as `+2024-03-18T00:00:00Z` | **Documented:** "Unauthenticated CORS requests may be made from any origin by setting the "origin" request parameter to "*"" (`https://www.mediawiki.org/wiki/API:Cross-site_requests`) | Data CC0; etiquette asks for moderate use. P749 is labelled "parent organization or unit" |
+| **Frankfurter** (ECB reference rates) | `https://api.frankfurter.dev/v1/latest?base=EUR&symbols={CUR}`; `…/v1/{YYYY-MM-DD}?base=EUR&symbols={CUR}` | `{amount, base, date, rates: {CUR: number}}` (observed: `{"amount":1.0,"base":"EUR","date":"2026-10-14","rates":{"GBP":0.84385}}`) | **Documented:** "CORS is open and there's no key to leak" (`https://frankfurter.dev/javascript/`) | No key; rate-limited without published caps. v1 is deprecated in favour of v2 "but remains available indefinitely" and sends Deprecation headers since 2.4.0 (2026-09-09); its values equalled the ECB's daily reference rates on 14 Oct 2026. The v2 equivalent is `/v2/providers/ecb/rates?base=EUR&quotes={CUR}` |
+
+**Facts found while verifying, and what the app does with them.**
+- GLEIF's relationship period is reported by the entity and is often not the deal date (Activision Blizzard → Microsoft: 2001-07-03; VMware International → Broadcom: 2017-10-02; VMware LLC → Broadcom: 1998-02-10; AVEVA Solutions → Schneider Electric: 2021-05-07; Splunk LLC → Cisco: 2024-03-18, the completion day). `open_gleif_parent` therefore returns `relationship.period_start` with a note ("not necessarily the acquisition date"), the console summary says "relationship reported from …", and the prompt tells the agent to take acquisition dates from the register or the acquirer's announcement (D-R21).
+- Acacia, Activision Blizzard and Slack have LAPSED registrations; Tableau Software UK is RETIRED; Acacia, Slack and Tableau UK report no parent. The agent sees the status in every record.
+- GLEIF legal names are often upper case (`SPLUNK LLC`) and US legal addresses are registered-agent cities (Wilmington, Tumwater). The simulation scripts use GLEIF's spelling.
+
+**Data-source memory** (`js/source_health.js`, session storage `rh.diag`). Diagnostics results and tool failures are remembered for ten minutes. Only failures that say something about the source count: network, CORS or timeout errors and HTTP 5xx; a 4xx from the tool's own input does not. A source remembered as failing is skipped with a message that says whether Diagnostics or an earlier call failed it, and the agent falls back to another source or web search.
+
+## 5. Map tiles and the offline basemap
+
+- **Default basemap:** OpenStreetMap standard tiles, desaturated by CSS (`saturate(0.3) brightness(1.05) contrast(0.94)`). Keyless; light interactive use with visible attribution and a valid Referer.
+- **Optional:** CARTO Positron raster tiles with a free key in `BASEMAP.cartoKey` (CARTO requires a key since 25 Sep 2026).
+- **Always present:** Natural Earth 1:50m land and borders, built by `tools/build_basemap.mjs` from `world-atlas@2.0.2` with `topojson-client@3.1.0`: 40° S to 84° N, all longitudes; Douglas-Peucker at 0.035° over North America and Europe and 0.16° elsewhere; 337 land polygons, 179 border lines, about 210 KB. Two Natural Earth rings (Eurasia's Chukotka and Wrangel Island) step from +180° to −180°; drawn as is, each step becomes a band across the whole map. The builder makes their longitudes continuous and cuts them at the meridian (D-R27). The Navigator's offline basemap has the same bands at latitudes 65–69° N in its Global view (`REVIEW.md`, W24).
+
+## 6. Front-end libraries, fonts and browser security
+
+| Asset | Version | Delivery | Notes |
+|---|---|---|---|
+| Leaflet | 1.9.4 | `js/libs.js`: unpkg, then jsDelivr, then the byte-identical copy in `vendor/leaflet-1.9.4/`; 7 s per source | One SRI hash for every source: `leaflet.js` `sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=`, `leaflet.css` `sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=` |
+| Web fonts | Barlow, Barlow Semi Condensed, IBM Plex Mono (Fontsource 5.3.0) | Self-hosted woff2 in `fonts/`, latin and latin-ext | SIL Open Font License 1.1; no third-party font service (GDPR, LG München I, 20 Jan 2022) |
+
+No other runtime library. Markdown is rendered by a small escape-first renderer (`js/md.js`).
+
+### Content Security Policy (meta tag in `index.html`)
+
+| Directive | Allows | Why |
+|---|---|---|
+| `connect-src` | `api.anthropic.com`, `api.gleif.org`, `www.wikidata.org`, `api.frankfurter.dev` | The only `fetch` targets; no other host can receive the API key or any data. Diagnostics' privacy row fails if the policy allows anything else |
+| `script-src` | `'self'` and the **exact** Leaflet file URLs on unpkg and jsDelivr | App modules, data files, Leaflet; no other CDN file can run (the Navigator allows both CDNs wholesale, W19) |
+| `style-src` | `'self'` and the exact Leaflet stylesheet URLs | Dynamic styles go through the CSSOM, so no `'unsafe-inline'` |
+| `img-src` | `'self'`, `data:`, OSM and CARTO tiles, Leaflet's image folders on the two CDNs | Map tiles and Leaflet's control images |
+| `font-src` | `'self'` | Self-hosted fonts |
+| `object-src`, `base-uri`, `form-action` | none | Hardening |
+
+**Browser storage** (`STORAGE` in `js/config.js`), all under the app's own prefix so it never collides with the Navigator on the same `github.io` origin: session storage `rh.anthropic.key`, `rh.diag`, `rh.model`, `rh.speed`, `rh.sessionCostEur`; local storage `rh.introSeen`, `rh.consoleText`. The key is never written to local storage.
+
+## 7. The rebate engine and the data model
+
+**World** (`data/world.js`, built by `tools/build_world.mjs`, world version 1.1.0). Three company codes, 161 vendor accounts (the Streamlit version's 150, plus 11 scenario accounts), 1,320 purchase orders, seven corporate groups, a subscription register of 20 entries, eight rebate agreements and their year-end report rules. The Streamlit generator is reproduced bit for bit (`tools/legacy_seed.mjs`); the world then places each account on the map (a noise account takes its city's country), dates its orders inside the agreement year, rounds seven accounts to their order total (one cent) and replaces three tax ids that would pass a real check. Day numbers are relative to today (day 0), so the agreement years and claim deadlines stay current whenever the app is opened; `js/clock.js` holds "today" and a replay of a recorded run pins it to the recording day. `js/world.js` indexes the world once (`getModel()`).
+
+**Years.** For each agreement: AY is the last closed agreement year (ending 37–81 days before today), PY the year before, CY the running year. A year's claim deadline is its end plus the longer of the claim window and the look-back.
+
+**Position per year** (`simulateRebate` in `js/rebate.js`, engine version 1.1.0). Spend of the counted accounts at the contract's fixed rates (an acquired account counts from its acquisition date); the tier reached and the rebate owed (tiers are retroactive); what the supplier credited by itself (its statement covers only linked accounts, where the agreement says so); what GlobalCorp's year-end report claimed (only linked accounts, only its currencies, only above its minimum); the open amount; the status (`not_owed`, `settled`, `open`, `expired`, `projected`). CY is projected from AY by the agreement's growth.
+
+**Members.** By default only the linked accounts count. Any other account must be a register member of the agreement's group; otherwise the call fails with the register's verdict, unless `what_if: true`, which marks the whole result `basis: "what_if"`. A member list that leaves out a linked account is a partial count (`basis: "partial"`, with a warning): the supplier's statement and the year-end report cover every linked account, so the figures would contradict them. Options refuse both.
+
+**Baseline.** Rebate at risk (`value_at_risk_eur`, the field name shared with the Navigator's event contract; the model sees `rebate_at_risk_eur`) = open amounts whose deadline falls within the horizon (default 400 days, 30–800 allowed). It includes the running year's projected rebate when the running year's deadline falls inside the horizon, because the same gap loses it too; `projected_eur` names that part, and the do-nothing card shows it. Already lost and beyond-horizon amounts are reported separately; the first deadline is named (`first_loss_label`, and `first_loss_short` for the tile: "Cisco"); the causes (`unlinked_members`, `report_currency`, `report_threshold`, `statement_partial`) name the accounts concerned.
+
+**Variants** (up to six; options use exactly three): actions `claim`, `set_off` (if the agreement allows it; every clause allows it for undisputed amounts only, so the notice gives the supplier seven days to object and the next payment run settles it, two days later; limited by open payables, the rest by credit note), `recovery_audit` (no preparation, files after 35 days, 18 % fee on what it recovers), `link_accounts` (register members only; group key and report effective after 20 days) and `fix_report` (all currencies at the contract rates and/or every tier; effective after 15 days). Claims cannot start before their preparation days, and the running year cannot be claimed before it ends. For each variant: response cost, amount recovered with cash days, rebate still lost, expected total (= cost + still lost), net recovery against doing nothing, first cash day, first remaining deadline, linked accounts, its action types, the end of the set-off objection period, cost breakdown and warnings. A `link_accounts` action on an agreement whose supplier credits from its own statement includes telling the supplier, so its statement counts the accounts. Golden figures for all six scenarios are frozen in `tests/engine.mjs`.
+
+**Name similarity** (`js/similarity.js`) is an exact port of Python's `difflib.SequenceMatcher.ratio()` including autojunk; `tests/engine.mjs` checks it against Python's values. The duplicate check (`erp_find_duplicates`) uses it to show candidates and what a name rule would miss; it never merges anything.
+
+## 8. Build decisions log
+
+Rebate Hunter inherits the Navigator's decisions D1–D45 (Navigator `TECH_NOTES.md` §7) wherever the shared code applies them: streaming, caching, thinking display, blocking decision tools, engine-filled options, one event bus, OSM tiles, Leaflet fallbacks, self-hosted fonts, the CSP, queued decisions, nudges with a Stopped end, run facts, the recorder, the key dialog, the intro, the design system, the progress rail, AI labels and handover names. Its own decisions:
+
+| # | Decision | Reason |
+|---|---|---|
+| D-R1 | Rebuild the Streamlit prototype (v6.2) as a static app on the Navigator's shell; keep `app.py` on the branch `legacy-streamlit` | One design and run model for both prototypes; the Streamlit demo URL can keep running from that branch |
+| D-R2 | English user interface (the Streamlit version was German) | The Navigator, its docs and its audience are English; one language across both prototypes |
+| D-R3 | Exactly three costed options plus doing nothing, as in the Navigator | The Streamlit version had one approve/reject gate; three options make the engine's role and the human decision visible |
+| D-R4 | Storage keys prefixed `rh.` (`STORAGE` in `js/config.js`; the tests import them) | The Navigator's `nav.*` keys share the `github.io` origin; separate names stop the two apps sharing a key, an intro flag or a failure memory (W1) |
+| D-R5 | Regenerate the Streamlit version's 150 accounts and 1,203 orders bit for bit (`tools/legacy_seed.mjs`: Python's MT19937, `seed`, `random`, `uniform`, `randint`, `choice`) and carry all of them over, placed on the map and dated inside the agreement year | The headline figures (Cisco €52.4M → €1,048,000; Microsoft €47.0M below the threshold) and the noise vendors stay as presented before |
+| D-R6 | Seven accounts take their order total instead of their stated spend | `app.py` truncated cents when splitting spend into orders; ledger and vendor master must agree to the cent |
+| D-R7 | The subscription register is the only merge authority, enforced in the engine and in `link_accounts` | The Streamlit version's core rule: similar names and cities never merge accounts |
+| D-R8 | Agreement years, deadlines and orders are relative to today | The scenarios never go stale; a deadline "in 31 days" is always in 31 days |
+| D-R9 | Real groups with real LEIs and acquisitions; fictional buyer, accounts, spend and agreements | Live GLEIF and Wikidata lookups can confirm the story while no real company's numbers are invented |
+| D-R10 | Open-data tools: GLEIF (entity and parent), Wikidata (ownership statements), ECB rates via Frankfurter, replacing the Navigator's weather, quake, natural-event and gauge tools | Keyless sources that verify group membership and currency questions, the two things a rebate claim rests on |
+| D-R11 | A verified alert needs two distinct sources (deduplicated by URL or title), two kinds of evidence gathered in this run (register, contract, ledger, report, GLEIF, Wikidata, ECB, web), and for every account it names that is not linked to an agreement a register check plus an independent confirmation (a GLEIF parent with the group's LEI, Wikidata naming the group, or a web search). A lookup that found nothing never counts: an empty register answer, a ledger call on unknown ids, a GLEIF record without a reported parent | "Two sources" was a count of two strings in the Navigator (W3); the review of this build showed that contract plus ledger alone could "verify" a membership |
+| D-R12 | Figure audit (`js/figures.js`, scopes in `js/guards.js`): every money amount in an alert, an option card, a draft or the summary must match a figure a tool returned, in the same currency, within the precision written and never by more than 2 %. Amounts are read in English, German, Swiss and spaced formats, with Mio./Mrd./T€, and after "Amount:" in postings. Drafts and option cards may quote only the ERP and open-data facts and the result the options rest on, never a what-if; web titles are not figures. Refused twice, then let through and marked as unchecked (a chip on the outbox card) | "Every euro comes from the engine" was claimed for free text (W2); the review found German formats, pounds and a what-if figure passing |
+| D-R13 | Drafts are finalised by one function for both producers (`js/drafts.js`): AI footer on every draft, the mock line on every posting | Simulation bookings lacked the footer in the Navigator (W5) |
+| D-R14 | Every tool has a one-line console summary (`js/summaries.js`) | Live open-data results read "Result received" in the Navigator (W6) |
+| D-R15 | Data-source memory in its own module, only for network/CORS/timeout failures and 5xx, expiring after ten minutes, worded by origin | One model-induced 4xx disabled a source for the session in the Navigator (W4) |
+| D-R16 | Streaming entries carry `aria-busy` until done | Screen readers re-announced partial paragraphs in the Navigator (W8) |
+| D-R17 | "New run" keeps the finished run until the mode is chosen | An unexported audit was wiped by an exploratory click in the Navigator (W10) |
+| D-R18 | One ERP tool table (`ERP_TOOLS`) shared by the agent, the player and the checker; one labels module shared by the console and the run facts | Duplicated dispatch had drifted in the Navigator (W14) |
+| D-R19 | The fallback sentence of the prompt depends on whether web search is on; an unknown `recommended_variant_id` is refused | Prompt and tools disagreed in the Navigator (W15) |
+| D-R20 | The CSP names the exact Leaflet files; simulated tool inputs have the live shape; the report dialog knows a recorded replay from a scripted one; no `kpi_update.series`; dead code removed | W12, W17, W19, W22, W23 |
+| D-R21 | GLEIF relationship periods are returned as `period_start` with a note, never as acquisition dates | Verified 14 Oct 2026: the reported periods often predate or postdate the deal (§4) |
+| D-R22 | Guardrail refusals of `ui_*` tools are shown in the console ("Guardrail: The draft was refused. …") and counted in the run facts | The safety net works in plain sight; a silent retry looked like hesitation |
+| D-R23 | The Live sweep stays enabled without web search | Its evidence (register, GLEIF, Wikidata, ECB) needs no web search; the Navigator disables Live scan (D21) because news is its evidence |
+| D-R24 | After a decision, the supplier group's headquarters follows the money (green when nothing is left to lose, amber otherwise), with the accounts and register links | The group stayed amber after a full recovery |
+| D-R25 | Views the app sets keep their subject clear of the expanded legend (focus offset, fit padding); transatlantic scenarios open at zoom 2.75 | In the Navigator's Global view the legend covers Leipzig and Győr; here it would have covered the US groups (W25) |
+| D-R26 | Below zoom 4.5 the company codes shrink to their glyph; below zoom 2.75 the headquarters labels go | Frankfurt, Lyon and Birmingham covered each other in the transatlantic views |
+| D-R27 | Offline basemap covers 40° S to 84° N, all longitudes, with antimeridian rings cut cleanly | A clipped box showed straight edges in Global view; raw rings drew bands across the map (W24) |
+| D-R28 | Each city's noise accounts are spread on a small sunflower disc (radius 0.62°) | Twelve to eighteen accounts per city drew as one blob |
+| D-R29 | The claim-deadline tile names whose claim and when in two words ("Cisco, Sun 15 Nov"); the do-nothing card, which has room, names it in full ("day 31, Cisco agreement-year claim"); the rebate tile reads "400-day exposure, verified" and after a decision "left with option A (was €2.14M)", as the Navigator's | Mirrors the Navigator's "Leipzig, Mon 19 Oct"; longer subtitles pushed the header to a third badge row at 1366 and 1280 px (tests/layout.mjs now checks the outbox state of all six scenarios at 1280 px) |
+| D-R30 | Version 7.0.0 | Continues the Streamlit version's numbering (6.2) |
+| D-R31 | GitHub Actions runs the Node suites and the browser suites on every push (`.github/workflows/tests.yml`) | The Navigator has no CI (W7) |
+| D-R32 | Money format (`eurCompact` in `js/format.js`): amounts below €1M keep every euro (€437,500, €17,100), millions show two decimals (€2.14M, €52.40M); the Navigator rounds to one decimal and to thousands (€19.1M, €380k) | A claim is an exact amount: a letter or a card that says €438k for €437,500 would not survive the figure audit and invites a dispute with the vendor |
+| D-R33 | One guardrail policy (`js/guards.js`) for the live tools and the simulation script checker: evidence, verified alerts, figure scopes, drafts per option, report outcomes | A scripted replay is held to exactly the rules a live run is; the review found live mode weaker than the checker in places |
+| D-R34 | A decision belongs to the set of options it was taken on (`options_seq` on `options` and `option_decision`); options cannot be proposed again after an approval | A click on a set the agent had just replaced counted for the new set (also in the Navigator: W26) |
+| D-R35 | Drafts only of the kinds the approved option contains: a posting needs a set-off, a supplier letter a claim, set-off or recovery audit; after accepting the loss only an internal memo. The summary's outcome follows the decision | The model could post a set-off the agreement forbids, or report "Option A approved" without a decision |
+| D-R36 | Set-off settles after a seven-day objection period plus the payment run (option B's cash day 12, not 5); the drafts give the objection date from the engine (`{{V2.objection_date}}`) | Every clause allows set-off of undisputed amounts only; a notice cannot be undisputed two days after it is sent |
+| D-R37 | A response that is not kept (a stream that breaks off and is retried, or a turn discarded by the max_tokens retry) is marked "Discarded" in the console, dropped from recordings, and its web searches never count as evidence; message ids are unique per attempt; every model turn counts against the 40-call cap, one discarded by the `max_tokens` retry included (transport retries within a turn stay bounded at two) | A web search in a failed attempt counted for a verified alert; a discarded turn's text could stay on screen (W18) |
+| D-R38 | Dates carry the year when it is not the current one ("Sun 14 Nov 2027") | With 400-day horizons a running-year deadline read like this year's |
+| D-R39 | A replay of a recorded run pins today to the recording day (`js/clock.js`); recordings carry the world and engine versions, and the checker audits their alerts, options, drafts and report like a live run's | Recorded narration quoted absolute dates the engine moved on the next day; a stale recording passed the checker |
+| D-R40 | The key dialog refuses a key when the app runs inside another page's frame, and asks password managers not to save the field | A meta CSP cannot set `frame-ancestors`; Simulation still works when framed |
+| D-R41 | The do-nothing card and the rebate tile's tooltip show how much of the headline is the running year's projected rebate | In five of the six scenarios about half of the headline is a projection of a year not yet earned |
+
+## 9. Live-agent guardrails
+
+Enforced in code (`js/agent.js`, `js/tools.js`, `js/rebate.js`, with the policy in `js/guards.js` that the simulation script checker applies too), not only in the system prompt (`js/prompt.js`):
+
+| Guardrail | Where | Behaviour |
+|---|---|---|
+| Step cap | `AGENT.maxSteps = 40` | At most 40 model calls per run, a discarded one included, then the run stops with a message |
+| Cost cap | `AGENT.budgetEur = 3.00` | The run stops once its own cost passes €3.00 |
+| Idle timeout | `AGENT.idleTimeoutMs = 90000` | 90 s without streamed data counts as a failed request (retried) |
+| Merge authority | `simulateRebate`, `link_accounts` | Only register members of the agreement's group count or can be linked; anything else is refused with the register's verdict, unless the call is a labelled what-if. A count without every linked account is marked partial |
+| Contract rules | `simulateRebate` | No set-off where the agreement forbids it; no claim on the running year; no claim before its preparation days |
+| Verified alert | `ui_report_alert` | Two distinct sources and two kinds of evidence from this run; every named account not linked to an agreement checked in the register and confirmed independently (GLEIF parent with the group's LEI, Wikidata, web search); evidence only from responses that were kept; otherwise refused with what is missing. The card adds "Checked in this run:" from the tool results |
+| Unknown ids | `ui_report_alert`, `ui_mark_map` | Dropped and reported back |
+| Options | `ui_propose_options` | Exactly three distinct variants of the latest `sim_rebate` call, which must have variants and must be neither a what-if nor a partial count; the recommendation must be one of them; every figure from the engine; the card texts audited; refused after an approval |
+| Decisions | `ui_propose_options`, `ui_await_decision` | Block until the human decides; a decision counts only for the set of options on screen (`options_seq`) and only once per option; approvals and rejections return as tool results with the next step, which names the drafts the option allows, and how to name the option (A, B, C) |
+| Drafts | `ui_draft_action` | Only after an approval and only of the kinds the approved option contains (posting only with a set-off; supplier letters only with a claim, set-off or recovery audit; a memo only after accepting the loss); footer "Prepared with the Rebate Hunter AI assistant. Requires human approval before sending." on every draft and the mock line on every posting, added in code; amounts audited against the facts and the result the options rest on |
+| Report | `ui_final_report` | Refused while a draft is pending or a decision is open; the outcome must follow the decision; amounts audited; "Live agent run" line added if missing |
+| Figure audit | alerts, option texts, drafts, report | Amounts in any common format and currency must match a tool figure of the allowed scope (`js/guards.js`); refused twice, then marked as unchecked |
+| Open data | `js/opendata.js` | Requests follow the run's Abort; a 429 is answered with a fallback hint and not remembered as a broken source; a non-JSON answer is named as such |
+| Key | 401 | The key is removed from the tab and the run stops |
+| Audit | `recordApiExchange` | Every request and response logged, the system prompt and tool schemas once per run; signatures, redacted thinking and search `encrypted_content` stripped; the key never enters the audit |
+
+Run states: Idle → Scanning → Diagnosing → Verifying → Simulating → Options → Awaiting your decision / Awaiting your approval → Executing → Done (or Stopped, Aborted, Error).
+
+## 10. Simulation scripts and recorded runs
+
+- **Format.** `data/sim_runs.js` holds one script per preset scenario: `{ title, steps: [...] }`, with optional `source: "recorded"` and `recorded: {at, model, app_version, world_version, engine_version, run_id, cost_eur}`. Step types: `state`, `say`, `think`, `tool` (ERP query, re-executed at playback), `web`, `open` (representative or recorded open-data result), `recordedTool`, `rebate` (a reference-case name or `{name, spec, label}`), `alert`, `map`, `options`, `awaitOption`, `draft`, `awaitActions`, `report`, `notice`, `end`. Simulated tool calls carry the live input shape.
+- **Numbers.** ERP results come from `js/erp.js` at playback; every € figure, tier and date comes from the rebate engine via placeholders such as `{{var}}`, `{{AY.owed_full}}`, `{{AY.deadline_date}}`, `{{V1.cost}}`, `{{V2.objection_date}}`, `{{hyp.AY.spend}}`, `{{date:+14}}` (`js/sim_vars.js`). Amounts typed into texts must match a tool figure of the scope live mode allows them (a draft never quotes a what-if).
+- **Checks** (`js/sim_check.js`, run by Diagnostics, `tools/check_world.mjs` and the recorder), with the live policy of `js/guards.js`: known step kinds and states, ERP calls that succeed, engine specs that run, placeholders that resolve where they are used, no "undefined" in a text or a summary, a verified alert that live mode would accept (two sources, two kinds of evidence, memberships established and confirmed), options covering exactly the three costed variants of a verified result with a valid recommendation, rejection and approval paths for every option and for accepting the loss, only the drafts each approved option allows, drafts before the outbox wait and the report after it, the report's outcome following the decision, the simulation marker in every report. Authored scripts also need a hypothesis, a visible "Revised:" and at least eight tool calls before the decision. Recorded scripts are audited like a live run (alerts, options, drafts, report; not the model's narration) and reported as stale when their world or engine version differs or a figure they quote no longer comes out.
+- **Evidence labels.** Authored scripts' web and open-data results are representative ("(representative)", no URLs; web results carry the titles of the real announcements); recorded scripts keep the run's real results ("(recorded <date>)"). Alert cards in both modes add "Checked in this run:" from the evidence actually gathered.
+- **Replay day.** A recorded run replays on its recording day (`js/clock.js` pins today), so its narration's dates and the engine's agree.
+- **Recorder.** After a completed live run of a preset scenario, "Save run as simulation" builds the script from the run's events, validates it and downloads `sim-run-<scenario>-recorded-<date>.js`. Branches follow the agent's view of each decision; refused tool calls leave no step (a refused outbox wait included); a response that was discarded leaves nothing; the live report marker becomes "Recorded live run, replayed in Simulation mode".
+
+## 11. Verification log (15 Oct 2026)
+
+All suites run headless in Chromium (Playwright 1.56) at 1920×1080 unless stated, against the static files, with every external host mocked or blocked. None calls a real API. `node tests/run-all.mjs` runs them all.
+
+| Suite | What it covers | Result |
+|---|---|---|
+| tokens (`tools/palette.mjs --check`) | 32 contrast pairings, brand vs danger, 9 colour-blind pairs, token files; values identical to the Navigator's | 45 of 45 pass |
+| world (`tools/check_world.mjs`) | Model integrity, 150 legacy accounts and 1,203 orders, ledger sums, orders inside their year, register and agreements, Apex look-alikes in different groups, coordinates, scenario exposure, reference cases bite and their first estimates differ, sweep negatives at €0, six scripts valid under the live guardrail policy (8–10 tool calls before the decision, four approval paths each, verified alerts live mode accepts, only the drafts each option allows) | 34 of 34 pass |
+| unit (`tests/unit.mjs`) | SSE parsing under three chunkings, signatures, incomplete tool input, mid-stream error, 429, spend limit, retries, abort, truncated streams, cost maths per model | Pass |
+| engine (`tests/engine.mjs`) | Legacy data = Python's fingerprint (150 accounts, 1,203 orders, SHA-256 `06c81fa9…8b95`); `difflib` ratios = Python's; golden figures of six scenarios; Streamlit headline; sweep negatives; determinism; engine refusals; duplicate check; evidence rules; figure audit; draft lines; decision payoff; the guard policy (formats and currencies, scopes, verified alerts, drafts per option, outcomes), partial counts, set-off timing, model-facing names, dates with a year and a pinned day | 19 of 19 pass |
+| smoke (`tests/smoke.mjs`) | Full Cisco simulation with export (a key stored in the tab stays out of it); 401 then accepted key and two nudges ending Stopped; Diagnostics and a custom what-if; intro window; CDNs down; no Leaflet; `file://`; missing data file | 8 of 8 pass |
+| sims (`tests/sims.mjs`) | Six scripts with reject-then-approve, approve, accept-the-loss and reject-all plans; markers, placeholders, no network beyond tiles, KPI and map payoff (a full recovery leaves nothing amber), audit | 6 of 6 pass |
+| live (`tests/live.mjs`) | Full Cisco run against the protocol-checking fake API: parallel lookups, `pause_turn`, a 529 retry, GLEIF parent and a GLEIF 404 as an answer, a verified alert with four kinds of evidence, first estimate (nothing owed) then the verified €2.14M, rejection of B then approval of A, `max_tokens` cut-off retry at 24,000, a draft amount refused by the figure audit and corrected, approve/reject drafts, report, audit (no key, no signatures, system prompt logged), cost meter equal to the usage maths to 1e-9, Save run as simulation and its replay; web search off (banner, nudge, sweep still enabled); GLEIF 503 with fallback and the source memory skipping the second call; a quick second decision with a posting and its mock line; Abort mid-call with no request afterwards; 401; an empty Live sweep parsing Wikidata, ECB and GLEIF search fixtures; guardrails: a web search in a response that breaks off is discarded and does not count, a verified alert on the register alone is refused, a decision on an older set of options is ignored, a posting without a set-off, a German-format wrong amount and a contradicting outcome are refused | 8 of 8 pass, 0 protocol violations, 0 CSP violations |
+| accept (`tests/accept.mjs`) | Key lifecycle (session only, new tab clean, DOM, console and export clean, key only in the `x-api-key` header to api.anthropic.com, Change or forget key, the field asks password managers not to save it); Diagnostics flags GLEIF blocked, the agent then makes no GLEIF request and uses web search; seven Abort/Reset paths in both modes; Salesforce simulation with every external host blocked | 4 of 4 pass |
+| layout (`tests/layout.mjs`) | 1920×1080, 1600×900, 1536×864, 1366×768, 1280×720 at idle, options and outbox, and the other five scenarios at 1280×720: no overflow, badges never overlap the KPI tiles, the header keeps two badge rows, one-row control bar; HTML targets ≥ 40 px in seven states | 7 of 7 pass |
+| design (`tests/design.mjs`) | Map strokes and legend equal the state tokens; pill and rail hand-over names; AI labels; projector-washout and colour-blind captures | 2 of 2 pass |
+
+**Not testable here.** Real model latency and real web-search results need a real key; the run facts and the audit export give the numbers in rehearsal. Browser CORS of GLEIF is undocumented and was not observable from the build environment; Diagnostics tests it on the presentation laptop, and every failure falls back to another source or web search.
+
+## 12. Acceptance checklist
+
+The Navigator's acceptance items, applied to Rebate Hunter. "Mock" means the live agent ran against the scripted, protocol-checking stand-in for the Anthropic API.
+
+| # | Requirement | How it was verified | Result |
+|---|---|---|---|
+| 1 | Loads with no key; Start opens the mode dialog; Live then asks for the key; the key is gone after the tab closes and never appears in logs or the audit export | `tests/accept.mjs key`; the Diagnostics "Key and privacy" row repeats the checks in the presenter's browser | Pass |
+| 2 | A full run of each scenario takes under about 4 minutes on Sonnet, with ≥ 8 visible tool calls and ≥ 1 visible verification step | Simulation: all six scripts have 8–10 tool calls before the decision, a hypothesis, evidence and a visible "Revised:" (`tools/check_world.mjs`, `tests/sims.mjs`); mock live run: 9 tool calls, 2 verification steps. The run-facts line reports agent time, tool calls and verification steps on every run | Pass for Simulation and mock; real-key timing to be read from the run facts in rehearsal |
+| 3 | Options always show a € comparison including do-nothing; approving one produces outbox drafts; nothing is sent anywhere except api.anthropic.com and the listed open APIs | Every simulation and mock run shows three options plus "Do nothing" with engine figures; approval produces drafts; the CSP allows `fetch` to exactly four hosts; request logs in `tests/accept.mjs` show only those hosts, the Leaflet CDN and map tiles | Pass |
+| 4 | A Live sweep with no findings ends honestly | `tests/live.mjs scan`: "Run complete: no material finding." with run facts | Pass |
+| 5 | The cost meter is within ±25 % of the usage maths; Abort and Reset always recover to Idle | Mock full run: meter equals the price table × usage to 1e-9; Abort/Reset matrix: seven paths in both modes | Pass |
+| 6 | Diagnostics flags an unreachable API and the agent routes around it | `tests/accept.mjs diag` (GLEIF blocked); `tests/live.mjs opendata` (GLEIF 503 during a run; the next GLEIF call is skipped) | Pass |
+| 7 | Simulation runs every preset with no key and no network beyond map tiles; badge and watermark always visible; approval and rejection paths play; "Save run as simulation" exports a valid script | `tests/sims.mjs`, `tests/accept.mjs offline`, `tests/live.mjs full` and `race` | Pass |
+| 8 | Figures in drafts and summaries come from tools (new) | `tests/live.mjs full`: a typed amount is refused, shown as a guardrail line, corrected, and never reaches the Outbox; `tests/engine.mjs` figure-audit cases | Pass |
+| 9 | Look-alike names never merge accounts (new) | `tests/engine.mjs` guardrails; the Apex scenario | Pass |
+| 10 | A verified alert rests on established memberships, and a decision, a draft or a summary can only follow the human decision on the options on screen (new) | `tests/live.mjs guards`; `tests/engine.mjs` guard policy; every script checked against the same policy (`tools/check_world.mjs`) | Pass |
