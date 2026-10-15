@@ -4,7 +4,7 @@ export const APP = {
   id: "rh",
   name: "Rebate Hunter",
   fullName: "Procurement Rebate Hunter",
-  version: "7.0.0"
+  version: "7.1.0"
 };
 
 export const ANTHROPIC = {
@@ -80,38 +80,6 @@ export const OPEN_DATA = {
   }
 };
 
-export const BASEMAP = {
-  // Optional: a free CARTO basemaps key enables the light Positron raster style (TECH_NOTES §5).
-  cartoKey: "",
-  osm: {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    probeTile: "https://tile.openstreetmap.org/4/8/5.png"
-  },
-  carto: {
-    url: "https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key={key}",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
-  }
-};
-
-// Leaflet: unpkg first, then jsDelivr, then the byte-identical copy in vendor/ (TECH_NOTES §6, D10).
-// The same SRI hashes apply to all three sources.
-export const LIBS = {
-  leaflet: {
-    version: "1.9.4",
-    integrity: {
-      js: "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=",
-      css: "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    },
-    sources: [
-      { label: "unpkg", base: "https://unpkg.com/leaflet@1.9.4/dist/" },
-      { label: "jsDelivr", base: "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/" },
-      { label: "local copy", base: "vendor/leaflet-1.9.4/" }
-    ],
-    timeoutMs: 7000
-  }
-};
-
 // Every browser storage key, all under this app's own prefix. GitHub Pages serves all of an
 // account's project sites from one origin, so a sister app (Navigator uses "nav.") must never
 // share a key with this one: no shared API key, intro flag, cost total or failure memory.
@@ -128,7 +96,6 @@ export const STORAGE = {
 
 export const UI = {
   defaultScenario: "SC-CISCO-MA",
-  networkView: { lat: 50.2, lon: 3.5, zoom: 5 },
-  // "Accounts at risk" tone: a claim deadline this close is shown in the alarm colour.
+  // A claim deadline this close is shown in the warning colour (KPI tile, board).
   urgentDays: 30
 };

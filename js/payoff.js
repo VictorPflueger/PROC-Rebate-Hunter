@@ -48,11 +48,13 @@ export function kpiFromResult(res, label) {
 }
 
 /**
- * Events that follow an approval: the KPI tiles show what is still lost, and the map follows the
- * money. When the option leaves nothing to lose, every account the agreement counts (and the gap
+ * Events that follow an approval: the KPI tiles show what is still lost, and the rebate board follows
+ * the money. When the option leaves nothing to lose, every account the agreement counts (and the gap
  * accounts) turns resolved, with the supplier group. When some rebate is still lost, the accounts
- * the option links turn resolved and the others stay amber with the group. Returns a list of
- * [type, payload] pairs for the bus.
+ * the option links turn resolved, the other gap accounts turn amber with the group, and the accounts
+ * the report already counted keep their colour (nothing about them is at risk). The board updates
+ * carry the option and the accounts it links, which the board moves onto the agreement's ring.
+ * Returns a list of [type, payload] pairs for the bus.
  */
 export function decisionEffects(optionsPayload, optionId) {
   if (!optionsPayload) return [];
@@ -75,14 +77,15 @@ export function decisionEffects(optionsPayload, optionId) {
   const fixed = new Set(opt.linked_vendor_ids || []);
   const groupSafe = !(opt.residual_var_eur > 0);
   const resolved = counted.filter((id) => groupSafe || fixed.has(id));
-  const atRisk = counted.filter((id) => !resolved.includes(id));
+  const atRisk = exposed.filter((id) => !resolved.includes(id));
   const links = (ids) => ids.map((id) => `L-${id}`);
   const groupIds = optionsPayload.group_id ? [optionsPayload.group_id] : [];
+  const decision = { source: "decision", option_id: optionId, linked_vendor_ids: [...fixed] };
   if (resolved.length || (groupSafe && groupIds.length)) {
-    out.push(["map_update", { vendor_ids: resolved, link_ids: links(resolved), group_ids: groupSafe ? groupIds : [], state: "resolved", source: "decision" }]);
+    out.push(["board_update", { vendor_ids: resolved, link_ids: links(resolved), group_ids: groupSafe ? groupIds : [], state: "resolved", ...decision }]);
   }
   if (atRisk.length || (!groupSafe && groupIds.length)) {
-    out.push(["map_update", { vendor_ids: atRisk, link_ids: links(atRisk), group_ids: groupSafe ? [] : groupIds, state: "at_risk", source: "decision" }]);
+    out.push(["board_update", { vendor_ids: atRisk, link_ids: links(atRisk), group_ids: groupSafe ? [] : groupIds, state: "at_risk", ...decision }]);
   }
   return out;
 }

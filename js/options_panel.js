@@ -101,7 +101,7 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
       h("p", { class: "option-desc" }, b?.description || "Claim nothing and let the claim deadlines pass."),
       h("dl", { class: "option-figures" },
         h("dt", {}, "Rebate lost"), h("dd", {}, eurCompact(b?.value_at_risk_eur)),
-        ...(b?.projected_eur > 0 ? [h("dt", {}, "Of which projected"), h("dd", { title: "The running year's rebate, projected from last year: it is lost too if nothing changes before the year ends" }, `${eurCompact(b.projected_eur)} (running year)`)] : []),
+        ...(b?.projected_eur > 0 ? [h("dt", {}, "Of which projected"), h("dd", { title: "The current year's rebate, projected from last year: it is lost too if nothing changes before the year ends" }, `${eurCompact(b.projected_eur)} (current year)`)] : []),
         h("dt", {}, "First deadline"), h("dd", {}, firstLoss),
         ...(b?.lost_already_eur > 0 ? [h("dt", {}, "Already lost"), h("dd", {}, eurCompact(b.lost_already_eur))] : [])),
       h("div", { class: "option-total" }, h("span", { class: "label" }, "Expected total"), h("span", { class: "value num" }, eurCompact(b?.value_at_risk_eur))),

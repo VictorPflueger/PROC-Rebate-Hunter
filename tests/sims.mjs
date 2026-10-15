@@ -1,10 +1,12 @@
 // Plays all six simulation scripts in the browser with different decision paths and checks the
-// integrity rules: no unresolved placeholders, SIMULATION markings, no network beyond map tiles,
-// KPI and map payoff after the decision, audit export marked as simulation.
+// integrity rules: no unresolved placeholders, SIMULATION markings, no network at all, KPI and
+// rebate-board payoff after the decision (approved years green, a year the option covers in part
+// amber with what is still lost, accounts an option links gliding onto the ring, an accepted loss
+// stays red), audit export marked as simulation.
 // Usage: node tests/sims.mjs [scenarioId…]
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { APP_ROOT, ONLY, outDir, launchBrowser, serveStatic, fulfilLeaflet, NETWORK_NOISE, SKIP_INTRO } from "./lib/harness.mjs";
+import { APP_ROOT, ONLY, outDir, launchBrowser, serveStatic, NETWORK_NOISE, SKIP_INTRO } from "./lib/harness.mjs";
 
 const OUT = await outDir("sims");
 const { base: BASE, close } = await serveStatic(APP_ROOT, 8768);
@@ -17,7 +19,7 @@ const PLANS = {
   "SC-APEX-NAME": { reject: ["V1"], approve: "V2", drafts: "approve-all" },
   "SC-AVGO-VMW": { reject: [], approve: "baseline", drafts: "approve-all" },
   "SC-SCHN-AVEVA": { reject: ["V1", "V2", "V3"], approve: "baseline", drafts: "approve-all" },
-  "SC-CRM-FX": { reject: ["V2"], approve: "V1", drafts: "reject-last" }
+  "SC-CRM-FX": { reject: ["V3"], approve: "V2", drafts: "reject-last" }
 };
 
 const results = [];
@@ -47,8 +49,7 @@ async function playScenario(id, plan) {
   const network = [];
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const u = new URL(route.request().url());
-    if (await fulfilLeaflet(route)) return;
-    if (!/tile\.openstreetmap\.org|basemaps\.cartocdn\.com/.test(u.host)) network.push(`${route.request().method()} ${u.host}${u.pathname}`);
+    network.push(`${route.request().method()} ${u.host}${u.pathname}`);
     return route.abort("blockedbyclient");
   });
   const page = await context.newPage();
@@ -92,9 +93,16 @@ async function playScenario(id, plan) {
     }
     await page.waitForTimeout(1500);
     checks.kpiAfter = await page.$$eval(".kpi", (els) => els.slice(0, 3).map((e) => `${e.dataset.tone}|${e.innerText.replace(/\s+/g, " ").trim()}`));
-    checks.sites = await page.$$eval(".site-marker", (els) => els.map((e) => `${e.querySelector(".site-label")?.textContent}:${e.dataset.state}`));
-    checks.accountsResolved = await page.$$eval("path.state-resolved", (els) => els.length);
-    checks.mapAtRisk = await page.$$eval("path.state-at_risk, .site-marker[data-state='at_risk']", (els) => els.length);
+    // The board after the decision, whichever way it is drawn (the constellation, or the band of
+    // accounts while the drawer leaves it short).
+    Object.assign(checks, await page.evaluate(() => {
+      const shown = (sel) => [...document.querySelectorAll(`#board .constellation:not([hidden]) ${sel}, #board .acct-band:not([hidden]) ${sel.replace(".acct", ".band-acct")}`)];
+      return {
+        accountsResolved: shown('.acct[data-state="resolved"]').length,
+        boardAtRisk: shown('.acct[data-state="at_risk"]').length + document.querySelectorAll('#board .hub[data-state="at_risk"], #board .race-seg[data-state="at_risk"], #board .race-out[data-tone="at_risk"]').length,
+        race: [...document.querySelectorAll("#board .race-row")].map((r) => `${r.dataset.year}:${r.querySelector(".race-out").dataset.tone}:${r.querySelector(".race-out").innerText.replace(/\s+/g, " ").trim()}`)
+      };
+    }));
     // drafts
     await page.waitForSelector(".action-card[data-status='pending']", { timeout: 120000 });
     await page.waitForFunction(() => /Waiting for your approval of \d+ draft/.test(document.querySelector("#console").innerText), null, { timeout: 120000 });
@@ -143,6 +151,32 @@ async function playScenario(id, plan) {
     checks.auditSaveDisabled = await page.$eval('button:has-text("Save run as simulation")', (b) => b.getAttribute("aria-disabled"));
     checks.optionDecisions = audit.events.filter((e) => e.type === "option_decision").map((e) => `${e.payload.decision} ${e.payload.option_id}`);
     checks.actionDecisions = audit.events.filter((e) => e.type === "action_decision").map((e) => e.payload.decision).join(",");
+    // The accounts the approved option links sit on the agreement's ring once the drawer is closed.
+    const optionsEv = audit.events.filter((e) => e.type === "options").slice(-1)[0];
+    const linkedByOption = (optionsEv?.payload.options || []).find((o) => o.id === plan.approve)?.linked_vendor_ids || [];
+    // Hiding the drawer gives the constellation back: an account the option links glides onto the
+    // ring (its distance from the hub passes through values between outside and the ring).
+    const glide = page.evaluate((ids) => new Promise((resolve) => {
+      const between = new Set();
+      const t0 = performance.now();
+      const px = (el, name) => parseFloat(getComputedStyle(el).getPropertyValue(name));
+      const step = () => {
+        const a = ids.length ? document.querySelector(`#board .constellation:not([hidden]) .acct[data-id="${ids[0]}"]`) : null;
+        const hub = document.querySelector("#board .constellation:not([hidden]) .hub");
+        if (a && hub) {
+          const k = Math.hypot(px(a, "--x") - px(hub, "--x"), px(a, "--y") - px(hub, "--y")) / px(hub, "--ring-r");
+          if (k > 1.08 && k < 1.35) between.add(k.toFixed(3));
+        }
+        if (performance.now() - t0 < 2200) requestAnimationFrame(step); else resolve(between.size);
+      };
+      requestAnimationFrame(step);
+    }), linkedByOption);
+    await page.click('.drawer button:has-text("Hide")').catch(() => {});
+    checks.glideSteps = await glide;
+    await page.waitForTimeout(300);
+    checks.ringAfter = await page.$$eval('#board .acct[data-place="ring"]', (els) => els.map((e) => e.dataset.id).sort());
+    checks.linkedByOption = linkedByOption;
+    await page.screenshot({ path: path.join(OUT, `${short}-5-board.png`) });
     // expectations
     if (checks.badge !== "SIMULATION") problems.push("badge");
     if (!checks.watermark) problems.push("watermark hidden");
@@ -150,14 +184,28 @@ async function playScenario(id, plan) {
     if (checks.auditMode !== "simulation") problems.push("audit mode");
     if (!checks.reportMarked) problems.push("report not marked as simulated");
     for (const l of ["Hypothesis:", "Confirmed:", "Revised:", "Recommendation:"]) if (!checks.labels.includes(l)) problems.push(`missing ${l}`);
-    if (network.length) problems.push(`network beyond tiles: ${network.join(", ")}`);
+    if (network.length) problems.push(`network requests: ${network.join(", ")}`);
     const expectRejected = plan.reject.length;
     if (checks.optionDecisions.filter((d) => d.startsWith("rejected")).length !== expectRejected) problems.push("rejections not recorded");
     if (plan.approve !== "baseline" && !/resolved|at-risk/.test(checks.kpiAfter[0])) problems.push(`VaR tile did not show the payoff: ${checks.kpiAfter[0]}`);
-    // The map follows the money: a full recovery leaves nothing amber; any approval resolves something.
+    // The board follows the money: any approval resolves accounts and turns a year green; a full
+    // recovery leaves nothing amber; the accounts an option links join the ring; an accepted loss
+    // stays red and says so.
     if (plan.approve !== "baseline") {
-      if (!(checks.accountsResolved > 0)) problems.push("no account or link turned resolved after the approval");
-      if (/^resolved\|/.test(checks.kpiAfter[0]) && checks.mapAtRisk !== 0) problems.push(`full recovery, but ${checks.mapAtRisk} map entities stay amber`);
+      // A full recovery resolves the group's accounts; one that leaves rebate lost keeps them amber,
+      // except the accounts it links.
+      if (/^resolved\|/.test(checks.kpiAfter[0]) && !(checks.accountsResolved > 0)) problems.push("no account turned resolved after a full recovery");
+      if (checks.linkedByOption.length && !(checks.accountsResolved >= checks.linkedByOption.length)) problems.push("the accounts the option links are not resolved");
+      if (!checks.race.some((r) => /:resolved:.*option [A-C] approved/.test(r))) problems.push(`no year shows the approved claim: ${checks.race.join(" / ")}`);
+      if (checks.race.some((r) => /recovered/.test(r))) problems.push(`a year reads "recovered" before any cash: ${checks.race.join(" / ")}`);
+      if (/^resolved\|/.test(checks.kpiAfter[0]) && checks.boardAtRisk !== 0) problems.push(`full recovery, but ${checks.boardAtRisk} board entities stay amber`);
+      // Some rebate still lost: a year says how much, in amber.
+      if (/^at-risk\|/.test(checks.kpiAfter[0]) && !checks.race.some((r) => /:at_risk:€[\d,]+ still lost with option [A-C]/.test(r))) problems.push(`the rebate still lost shows on no year: ${checks.race.join(" / ")}`);
+      const offRing = checks.linkedByOption.filter((v) => !checks.ringAfter.includes(v));
+      if (offRing.length) problems.push(`accounts the option links are not on the ring: ${offRing.join(", ")}`);
+      if (checks.linkedByOption.length && !(checks.glideSteps >= 2)) problems.push(`the linked accounts jump onto the ring instead of gliding (${checks.glideSteps} positions between)`);
+    } else if (!checks.race.some((r) => /:affected:.*loss accepted: do nothing/.test(r))) {
+      problems.push(`the accepted loss is not shown: ${checks.race.join(" / ")}`);
     }
   } catch (e) {
     problems.push(`exception: ${e.message.split("\n")[0]}`);

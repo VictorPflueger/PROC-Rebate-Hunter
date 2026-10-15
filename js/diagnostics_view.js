@@ -94,7 +94,6 @@ export function openDiagnostics({ onWebSearchResult, onCost } = {}) {
 
   // Integrity check is local and instant: show it straight away.
   runTest("world").then((r) => setRow("world", r));
-  runTest("leaflet").then((r) => setRow("leaflet", r));
   runTest("privacy").then((r) => setRow("privacy", r));
   return modal;
 }

@@ -4,7 +4,7 @@
 // What is kept: the agent's narration and reasoning summaries, every tool call in order, the
 // rebate specifications it chose (the player re-runs them through the engine, so € figures are
 // recomputed, never copied), the recorded web-search and open-data results (labelled "recorded"),
-// alerts, map marks, the options it proposed, its drafts and its report. The human decisions are
+// alerts, board marks, the options it proposed, its drafts and its report. The human decisions are
 // not baked in: the replay waits for new ones. Options the live run did not take end the replay
 // gracefully with a note.
 
@@ -204,14 +204,14 @@ function toSteps(events) {
             push({ recordedTool: { name, input, ok: false, summary: p.summary || "Rejected by the engine", result: p.result ?? null } });
           }
         }
-        // Other ui_* tools are represented by the events they caused (alert, map, options, drafts, report).
+        // Other ui_* tools are represented by the events they caused (alert, board, options, drafts, report).
         break;
       }
       case "alert":
         push({ alert: p });
         break;
-      case "map_update":
-        if (p.source !== "decision" && !waiting) push({ map: p });   // decision payoffs are re-created by the player
+      case "board_update":
+        if (p.source !== "decision" && !waiting) push({ board: p });   // decision payoffs are re-created by the player
         break;
       case "options": {
         const texts = {};

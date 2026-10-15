@@ -1,6 +1,6 @@
 // ERP-style queries over the synthetic company (vendor master, purchase orders, agreements, the
 // subscription register and the year-end rebate report). Pure functions returning compact,
-// JSON-safe objects. Used by map popovers, the agent's erp_* tools, the simulation player and the
+// JSON-safe objects. Used by the board's popovers, the agent's erp_* tools, the simulation player and the
 // script checker through one table, ERP_TOOLS, so the three can never disagree.
 //
 // The ERP holds ledger facts only. What a rebate is worth comes from the engine (js/rebate.js).
@@ -139,7 +139,7 @@ export function erpGetVendor(model, id) {
   const orders = model.ordersByVendor.get(id) || [];
   const cc = model.companyCodes.get(v.company_code);
   return {
-    id: v.id, name: v.name, city: v.city, country: v.country, lat: v.lat, lon: v.lon,
+    id: v.id, name: v.name, city: v.city, country: v.country,
     tax_id: v.tax_id, bank_account: `${v.bank.country} ···${v.bank.last4}`,
     invoice_currency: v.currency,
     company_code: { id: v.company_code, name: cc?.name },

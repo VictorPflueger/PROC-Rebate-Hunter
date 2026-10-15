@@ -22,7 +22,7 @@ export function chooseMode({ runLabel, simBlocked = null }) {
       h("span", { class: "badge-sim" }, "SIMULATION"),
       h("ul", {},
         h("li", {}, "Scripted replay of a representative agent run, through the same interface."),
-        h("li", {}, "No API key, no cost, no model calls. Works offline apart from map tiles."),
+        h("li", {}, "No API key, no cost, no model calls. Works fully offline."),
         h("li", {}, "Every € figure is still calculated by the rebate engine from the company data."),
         h("li", {}, "Labelled SIMULATION throughout, including the audit export.")),
       simBlocked ? h("p", { class: "why-disabled" }, simBlocked) : null,

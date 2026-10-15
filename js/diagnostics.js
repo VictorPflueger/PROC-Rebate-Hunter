@@ -2,8 +2,7 @@
 // (js/source_health.js), so the agent's open_* tools skip a blocked source and fall back to web
 // search at once.
 
-import { ANTHROPIC, OPEN_DATA, BASEMAP, LIBS, APP, STORAGE } from "./config.js";
-import { leafletInfo } from "./libs.js";
+import { ANTHROPIC, OPEN_DATA, APP, STORAGE } from "./config.js";
 import { checkKey, probeEndpoint, networkMessage } from "./anthropic.js";
 import { getKey, redactSecrets } from "./keystore.js";
 import { checkWorld } from "./world_check.js";
@@ -15,8 +14,6 @@ export const TESTS = [
   { id: "gleif", label: OPEN_DATA.gleif.label, host: "api.gleif.org", purpose: "Legal entities and who consolidates them (LEI level 2)" },
   { id: "wikidata", label: OPEN_DATA.wikidata.label, host: "www.wikidata.org", purpose: "Ownership statements (a reference, never the only source)" },
   { id: "frankfurter", label: OPEN_DATA.frankfurter.label, host: "api.frankfurter.dev", purpose: "ECB euro reference rates for currency checks" },
-  { id: "tiles", label: "Map tiles (OpenStreetMap)", host: "tile.openstreetmap.org", purpose: "Basemap (offline coastline fallback exists)" },
-  { id: "leaflet", label: "Map library (Leaflet)", host: "unpkg.com, cdn.jsdelivr.net or vendor/", purpose: "Map rendering; loaded once at start-up" },
   { id: "world", label: "World data integrity", host: "local", purpose: "Synthetic company, scenarios, reference cases, simulation scripts" },
   { id: "privacy", label: "Key and privacy", host: "local", purpose: "Key kept in this tab only, under this app's own name, never exported; connections limited by the page's security policy" }
 ];
@@ -50,17 +47,6 @@ async function fetchJson(url, validate, describe, timeoutMs = 10000) {
   }
 }
 
-function imageProbe(url, timeoutMs = 8000) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const started = performance.now();
-    const timer = setTimeout(() => { img.src = ""; resolve({ status: "fail", ms: null, detail: "Timed out." }); }, timeoutMs);
-    img.onload = () => { clearTimeout(timer); resolve({ status: "pass", ms: Math.round(performance.now() - started), detail: "Tile loaded." }); };
-    img.onerror = () => { clearTimeout(timer); resolve({ status: "fail", ms: null, detail: "Tile request blocked or unreachable; the offline coastline map will be shown." }); };
-    img.src = `${url}?rh=${Date.now()}`;
-  });
-}
-
 const RUNNERS = {
   async anthropic() {
     const key = getKey();
@@ -79,18 +65,6 @@ const RUNNERS = {
   gleif: () => fetchJson(OPEN_DATA.gleif.probe, (j) => !!j?.data?.attributes?.lei, (j) => `LEI record received: ${j.data.attributes.entity?.legalName?.name || j.data.id} (${j.data.attributes.registration?.status || "status unknown"}).`),
   wikidata: () => fetchJson(OPEN_DATA.wikidata.probe, (j) => Array.isArray(j?.search), (j) => `Search answered${j.search[0] ? `: ${j.search[0].label} (${j.search[0].id})` : ""}.`),
   frankfurter: () => fetchJson(OPEN_DATA.frankfurter.probe, (j) => typeof j?.rates?.GBP === "number", (j) => `ECB rate ${j.date}: €1 = £${j.rates.GBP}.`),
-  tiles: () => imageProbe(BASEMAP.osm.probeTile),
-  async leaflet() {
-    const info = leafletInfo();
-    if (!info.ok) return { status: "fail", ms: null, detail: "Not loaded from any source. The map is replaced by a notice; everything else works." };
-    const tried = info.attempts.filter((a) => a.js && !a.js.ok).map((a) => a.source);
-    const fallback = info.jsSource !== "unpkg" && info.jsSource !== "preloaded";
-    const css = info.cssSource ? "" : " Its stylesheet is missing, so the map may look broken.";
-    return {
-      status: fallback || !info.cssSource ? "warn" : "pass", ms: null,
-      detail: `Leaflet ${LIBS.leaflet.version} from ${info.jsSource}${tried.length ? ` (${tried.join(", ")} unreachable)` : ""}, integrity verified.${css}`
-    };
-  },
   async privacy() {
     const issues = [];
     const notes = [];
@@ -136,7 +110,7 @@ export async function runTest(id) {
   const fn = RUNNERS[id];
   if (!fn) return { status: "skip", detail: "Unknown test." };
   const r = await fn();
-  if (!["world", "leaflet", "privacy"].includes(id)) remember(id, r.status, r.detail, "diagnostics");
+  if (!["world", "privacy"].includes(id)) remember(id, r.status, r.detail, "diagnostics");
   return r;
 }
 

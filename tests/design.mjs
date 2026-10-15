@@ -1,5 +1,6 @@
 // Design checks and review captures (DESIGN.md §8):
-//   states   the colour grammar in the running app: map strokes and legend use the state tokens, the
+//   states   the colour grammar in the running app: the rebate board's accounts, register links and race
+//            segments and its legend use the state tokens, the
 //            status pill and the progress rail name the human step ("Your decision", then "Your
 //            approval"), the rail ends with every step done, and the AI labels open and close
 //   review   screenshots for a design review: the options at 1920×1080 as rendered and under a
@@ -8,7 +9,7 @@
 // Usage: node tests/design.mjs [case…]
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, fulfilLeaflet, SKIP_INTRO } from "./lib/harness.mjs";
+import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, SKIP_INTRO } from "./lib/harness.mjs";
 
 const OUT = await outDir("design");
 const { base: BASE, close } = await serveStatic(APP_ROOT, 8770);
@@ -28,10 +29,7 @@ const WASHOUT = "contrast(0.62) brightness(1.18) saturate(0.8)";
 async function newPage() {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await context.addInitScript(SKIP_INTRO);
-  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
-    if (await fulfilLeaflet(route)) return;
-    return route.abort("blockedbyclient");
-  });
+  await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort("blockedbyclient"));
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e.message || e)));
@@ -52,6 +50,47 @@ const railNow = (page) => page.evaluate(() => {
     states: [...document.querySelectorAll(".rail-step")].map((s) => s.dataset.state)
   };
 });
+
+/**
+ * The board's colours against the tokens: accounts (constellation dots or the band's), register links,
+ * race segments, the legend's status dots and the race key's swatches. Returns { mismatches, counted }.
+ */
+function boardColours(page) {
+  return page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const token = (n) => cs.getPropertyValue(n).trim().toLowerCase();
+    const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`; };
+    const out = { mismatches: [], counted: {} };
+    const STATES = [["affected", "--affected"], ["at_risk", "--at-risk"], ["resolved", "--resolved"]];
+    for (const [st, name] of STATES) {
+      const want = rgb(token(name));
+      const dots = [...document.querySelectorAll(`#board .constellation:not([hidden]) .acct[data-state="${st}"] .acct-dot`)].map((e) => [e, getComputedStyle(e).borderTopColor]);
+      const pills = [...document.querySelectorAll(`#board .acct-band:not([hidden]) .band-acct[data-state="${st}"] .band-dot`)].map((e) => [e, getComputedStyle(e).borderTopColor]);
+      const links = [...document.querySelectorAll(`#board .constellation:not([hidden]) .reg-link[data-state="${st}"]`)].map((e) => [e, getComputedStyle(e).stroke]);
+      out.counted[st] = dots.length + pills.length + links.length;
+      for (const [e, got] of [...dots, ...pills, ...links]) if (got !== want) out.mismatches.push(`${st} ${e.className.baseVal ?? e.className} ${got} ≠ ${want}`);
+    }
+    const missed = [...document.querySelectorAll('#board .race-row:not([data-quiet="true"]) .race-seg[data-kind="missed"]:not([data-state])')];
+    for (const e of missed) if (getComputedStyle(e).backgroundColor !== rgb(token("--affected"))) out.mismatches.push(`missed segment ${getComputedStyle(e).backgroundColor}`);
+    const recovered = [...document.querySelectorAll('#board .race-seg[data-state="resolved"]')];
+    for (const e of recovered) if (getComputedStyle(e).backgroundColor !== rgb(token("--resolved"))) out.mismatches.push(`recovered segment ${getComputedStyle(e).backgroundColor}`);
+    out.counted.affected += missed.length;
+    out.counted.recoveredSegments = recovered.length;
+    const status = [...document.querySelectorAll("#board .legend-group")].find((g) => /Status/.test(g.textContent));
+    const rows = status ? [...status.querySelectorAll(".legend-row")] : [];
+    for (const [label, name] of [["Rebate missed", "--affected"], ["At risk", "--at-risk"], ["Approved or settled", "--resolved"]]) {
+      const row = rows.find((r) => r.textContent.trim().startsWith(label));
+      const got = row ? getComputedStyle(row.querySelector(".legend-swatch-dot")).borderTopColor : "missing";
+      if (got !== rgb(token(name))) out.mismatches.push(`legend "${label}" ${got} ≠ ${rgb(token(name))}`);
+    }
+    // The race's key, in the card's head, uses the segments' own colours.
+    const bar = (k) => { const i = document.querySelector(`#board .race-key .rk[data-k="${k}"] > i`); return i ? getComputedStyle(i).backgroundColor : "missing"; };
+    if (bar("missed") !== rgb(token("--affected"))) out.mismatches.push(`race key "missed" ${bar("missed")}`);
+    const counted = document.querySelector('#board .race-seg[data-kind="counted"]');
+    if (counted && bar("counted") !== getComputedStyle(counted).backgroundColor) out.mismatches.push(`race key "counted" ${bar("counted")} ≠ segment ${getComputedStyle(counted).backgroundColor}`);
+    return out;
+  });
+}
 
 async function toOptions(page) {
   await page.click('button[aria-label="Replay speed ×4"]');
@@ -78,29 +117,10 @@ if (wanted("states")) {
     let rail = await railNow(page);
     if (rail.step !== "propose" || rail.state !== "yours" || rail.turn !== "Your decision") problems.push(`options: rail shows ${JSON.stringify(rail)}`);
 
-    // The map draws states with the state tokens, and the legend shows the same colours.
-    const colours = await page.evaluate(() => {
-      const cs = getComputedStyle(document.documentElement);
-      const token = (n) => cs.getPropertyValue(n).trim().toLowerCase();
-      const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`; };
-      const out = { mismatches: [], counted: {} };
-      for (const [st, name] of [["affected", "--affected"], ["at_risk", "--at-risk"], ["resolved", "--resolved"]]) {
-        const want = token(name);
-        const paths = [...document.querySelectorAll(`.leaflet-interactive.state-${st}`)];
-        out.counted[st] = paths.length;
-        for (const p of paths) if ((p.getAttribute("stroke") || "").toLowerCase() !== want) out.mismatches.push(`${st} path stroke ${p.getAttribute("stroke")} ≠ ${want}`);
-      }
-      const legend = [...document.querySelectorAll(".legend-group")].find((g) => /Status/.test(g.textContent));
-      const rows = legend ? [...legend.querySelectorAll(".legend-row")] : [];
-      for (const [label, name] of [["Affected", "--affected"], ["At risk", "--at-risk"], ["Resolved", "--resolved"]]) {
-        const row = rows.find((r) => r.textContent.trim().startsWith(label));
-        const got = row ? getComputedStyle(row.querySelector(".legend-swatch-line")).borderTopColor : "missing";
-        if (got !== rgb(token(name))) out.mismatches.push(`legend "${label}" ${got} ≠ ${rgb(token(name))}`);
-      }
-      return out;
-    });
+    // The board draws states with the state tokens, and its legend shows the same colours.
+    const colours = await boardColours(page);
     problems.push(...colours.mismatches);
-    if (!colours.counted.affected) problems.push("no affected path on the map at the options stage");
+    if (!colours.counted.affected) problems.push(`nothing marked affected on the board at the options stage (${JSON.stringify(colours.counted)})`);
 
     // AI label: opens a note on click, closes on Escape and gives focus back.
     await page.click(".options-summary-head .ai-label");
@@ -128,6 +148,12 @@ if (wanted("states")) {
 
     await toDone(page);
     await waitPill(page, /^Done$/);
+    // After the approval the recovered money and the accounts turn the resolved colour.
+    await page.click('.drawer button:has-text("Hide")').catch(() => {});
+    await page.waitForTimeout(1200);
+    const after2 = await boardColours(page);
+    problems.push(...after2.mismatches.map((m) => `after approval: ${m}`));
+    if (!after2.counted.resolved || !after2.counted.recoveredSegments) problems.push(`nothing resolved on the board after the approval (${JSON.stringify(after2.counted)})`);
     rail = await railNow(page);
     if (rail.states.some((s) => s !== "done")) problems.push(`done: rail states ${rail.states.join(", ")}`);
     if ((await pillText(page)) !== "Done") problems.push(`done: pill reads ${await pillText(page)}`);
@@ -154,6 +180,8 @@ if (wanted("review")) {
 
     await toDrafts(page);
     await toDone(page);
+    // The finished run with the drawer hidden: the board shows the whole group.
+    await page.click('.drawer button:has-text("Hide")').catch(() => {});
     await page.waitForTimeout(1500);
     await page.evaluate(() => {
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -164,8 +192,8 @@ if (wanted("review")) {
       svg.innerHTML = '<filter id="cvd-sim" color-interpolation-filters="linearRGB"><feColorMatrix id="cvd-matrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter>';
       document.body.appendChild(svg);
     });
-    const shots = { full: [], map: [] };
-    const mapBox = await page.$eval("#map", (m) => { const r = m.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+    const shots = { full: [], board: [] };
+    const boardBox = await page.$eval("#board", (m) => { const r = m.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
     for (const [name, m] of Object.entries(CVD)) {
       await page.evaluate((mat) => {
         const values = mat ? `${mat[0].join(" ")} 0 0 ${mat[1].join(" ")} 0 0 ${mat[2].join(" ")} 0 0 0 0 0 1 0` : "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0";
@@ -174,7 +202,7 @@ if (wanted("review")) {
       }, m);
       await page.waitForTimeout(300);
       shots.full.push([name, (await page.screenshot()).toString("base64")]);
-      shots.map.push([name, (await page.screenshot({ clip: mapBox })).toString("base64")]);
+      shots.board.push([name, (await page.screenshot({ clip: boardBox })).toString("base64")]);
     }
     await page.evaluate(() => { document.body.style.filter = ""; });
 

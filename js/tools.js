@@ -178,7 +178,7 @@ const DEFINITIONS = [
   },
   {
     name: "ui_report_alert",
-    description: "Raise a finding alert in the console and mark the accounts on the map. basis \"verified\" needs two distinct sources, at least two kinds of evidence from this run (register, contract, ledger, report, GLEIF, Wikidata, ECB, web), and for every account not linked to an agreement a register check (erp_family_tree) plus an independent confirmation (GLEIF parent, Wikidata or web search); basis \"what_if\" labels the alert as an unverified exercise.",
+    description: "Raise a finding alert in the console and mark the accounts on the rebate board. basis \"verified\" needs two distinct sources, at least two kinds of evidence from this run (register, contract, ledger, report, GLEIF, Wikidata, ECB, web), and for every account not linked to an agreement a register check (erp_family_tree) plus an independent confirmation (GLEIF parent, Wikidata or web search); basis \"what_if\" labels the alert as an unverified exercise.",
     input_schema: {
       type: "object",
       properties: {
@@ -197,8 +197,8 @@ const DEFINITIONS = [
     }
   },
   {
-    name: "ui_mark_map",
-    description: "Colour entities on the map: affected (red), at_risk (amber), resolved (green) or neutral. Links are register links \"L-<vendor id>\" from an account to its group.",
+    name: "ui_mark_board",
+    description: "Colour entities on the rebate board: affected (red, rebate missed), at_risk (amber), resolved (green) or neutral. Links are register links \"L-<vendor id>\" from an account to its group. The board already follows your lookups, sim_rebate results, alerts and decisions by itself: mark only what those do not show (for example at_risk while you check a group, neutral for a look-alike you ruled out).",
     input_schema: {
       type: "object",
       properties: {
@@ -206,8 +206,9 @@ const DEFINITIONS = [
         link_ids: ids("Register links, e.g. L-10003."),
         group_ids: ids("Corporate groups (G-…)."),
         company_code_ids: ids("Company codes (CC-…)."),
+        agreement_ids: ids("Rebate agreements (RA-…), shown in the portfolio view."),
         state: { type: "string", enum: ["affected", "at_risk", "resolved", "neutral"] },
-        fit: { type: "boolean", description: "Zoom the map to these entities." }
+        agreement_id: { type: "string", description: "Optional: show this agreement's group view." }
       },
       required: ["state"]
     }
@@ -322,7 +323,7 @@ export function createToolbox(ctx) {
     open_ecb_rate: (i) => ecbRate(ctx.model, i, io),
     sim_rebate: simRebate,
     ui_report_alert: reportAlert,
-    ui_mark_map: markMap,
+    ui_mark_board: markBoard,
     ui_propose_options: proposeOptions,
     ui_await_decision: awaitDecision,
     ui_draft_action: draftAction,
@@ -382,7 +383,7 @@ export function createToolbox(ctx) {
     return res;
   }
 
-  // -- alerts and map -----------------------------------------------------------------------------
+  // -- alerts and board ---------------------------------------------------------------------------
   function reportAlert(i) {
     const basis = i.basis === "what_if" ? "what_if" : "verified";
     if (basis === "verified") {
@@ -410,16 +411,32 @@ export function createToolbox(ctx) {
     return { ok: true, shown: true, evidence_kinds: run.evidence.kinds(), ...(unknown.length ? { ignored_unknown_ids: unknown } : {}) };
   }
 
-  function markMap(i) {
+  function markBoard(i) {
     const state = ["affected", "at_risk", "resolved", "neutral"].includes(i.state) ? i.state : "affected";
+    const m = ctx.model;
+    // Each list takes only ids of its own kind; anything else is reported back, not marked.
+    const only = (list, ok) => [...new Set((Array.isArray(list) ? list : []).map(String))].filter(ok).slice(0, 40);
     const p = {
-      vendor_ids: knownIds(i.vendor_ids), link_ids: knownIds(i.link_ids),
-      group_ids: knownIds(i.group_ids), company_code_ids: knownIds(i.company_code_ids), state
+      vendor_ids: only(i.vendor_ids, (id) => m.vendors.has(id)),
+      link_ids: only(i.link_ids, (id) => id.startsWith("L-") && isKnownId(m, id)),
+      group_ids: only(i.group_ids, (id) => m.groups.has(id)),
+      company_code_ids: only(i.company_code_ids, (id) => m.companyCodes.has(id)),
+      agreement_ids: only(i.agreement_ids, (id) => m.agreements.has(id)),
+      state
     };
-    if (i.fit) p.fit = [...p.vendor_ids, ...p.group_ids, ...p.company_code_ids];
-    ctx.emit("map_update", p);
-    const unknown = unknownIds(i, ["vendor_ids", "link_ids", "group_ids", "company_code_ids"]);
-    return { ok: true, marked: p.vendor_ids.length + p.link_ids.length + p.group_ids.length + p.company_code_ids.length, ...(unknown.length ? { ignored_unknown_ids: unknown } : {}) };
+    const focusId = i.agreement_id === undefined || i.agreement_id === null || i.agreement_id === "" ? null : String(i.agreement_id);
+    if (focusId && m.agreements.has(focusId)) p.focus = focusId;
+    ctx.emit("board_update", p);
+    const left = (key) => (Array.isArray(i[key]) ? i[key] : []).map(String).filter((id) => !p[key].includes(id));
+    const ignored = [...new Set([
+      ...["vendor_ids", "link_ids", "group_ids", "company_code_ids", "agreement_ids"].flatMap(left),
+      ...(focusId && !p.focus ? [focusId] : [])
+    ])];
+    return {
+      ok: true,
+      marked: p.vendor_ids.length + p.link_ids.length + p.group_ids.length + p.company_code_ids.length + p.agreement_ids.length,
+      ...(ignored.length ? { ignored_unknown_ids: ignored, hint: "Unknown ids, or ids in the wrong list (vendor_ids take vendor accounts, group_ids G-…, company_code_ids CC-…, agreement_ids and agreement_id RA-…, link_ids L-<vendor id>)." } : {})
+    };
   }
 
   function knownIds(list) {

@@ -38,14 +38,14 @@
   --brand-soft: var(--wine-3);         /* selected and tinted backgrounds */
   --brand-wash: var(--wine-2);         /* faintest tint */
 
-  /* status families: fill (backgrounds), mid (map fills, bars), line (strokes, icons), text */
+  /* status families: fill (backgrounds), mid (board fills, bars), line (strokes, icons), text */
   --danger-fill: var(--danger-3);   --danger-mid: var(--danger-7);   --danger-line: var(--danger-9);   --danger-text: var(--danger-11);
   --warning-fill: var(--warning-3); --warning-mid: var(--warning-7); --warning-line: var(--warning-9); --warning-text: var(--warning-11);
   --success-fill: var(--success-3); --success-mid: var(--success-7); --success-line: var(--success-9); --success-text: var(--success-11);
   --info-fill: var(--info-3);       --info-mid: var(--info-7);       --info-line: var(--info-9);       --info-text: var(--info-11);
   --violet-fill: var(--violet-3);   --violet-mid: var(--violet-7);   --violet-line: var(--violet-9);   --violet-text: var(--violet-11);
 
-  /* meaning: the network states and the network itself (read by the map), and the live badge */
+  /* meaning: the rebate positions and the network of accounts (read by the board), and the live badge */
   --affected: var(--danger-line);      --affected-fill: var(--danger-mid);
   --at-risk: var(--warning-line);      --at-risk-fill: var(--warning-mid);
   --resolved: var(--success-line);     --resolved-fill: var(--success-mid);
@@ -58,7 +58,7 @@
   --sim-yellow: var(--butter);
   --sim-black: var(--hazard);
 
-  /* map */
+  /* the board's canvas */
   --sea: var(--slate-3);
 
   /* type */
@@ -296,7 +296,7 @@ a:hover { color: var(--brand-deep); }
 .status-pill[data-tone="stopped"] .dot { background: var(--danger-line); }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Workspace: map (60 %) + agent console (40 %)                                               */
+/* Workspace: rebate board (60 %) + agent console (40 %)                                      */
 /* ------------------------------------------------------------------------------------------ */
 
 .workspace {

@@ -131,7 +131,7 @@ export function dayToISO(offset, base = appToday()) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Query helpers (popovers, tools, map)
+// Query helpers (popovers, tools, the rebate board)
 // ---------------------------------------------------------------------------------------------
 
 /** Display name of any id (vendor, company code, group, agreement). */
@@ -150,22 +150,6 @@ export function isKnownId(model, id) {
 /** Purchase orders of a vendor within [fromDay, toDay] (inclusive). */
 export function ordersIn(model, vendorId, fromDay, toDay) {
   return (model.ordersByVendor.get(vendorId) || []).filter((o) => o.day >= fromDay && o.day <= toDay);
-}
-
-/** Great-circle distance in km. */
-export function distKm(a, b) {
-  const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b[0] - a[0]);
-  const dLon = toRad(b[1] - a[1]);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-/** Spend band of an account by its agreement-year spend (drives marker size and shade). */
-export function spendBand(vendor) {
-  const ay = vendor?.spend?.AY || 0;
-  return ay >= 10000000 ? 1 : ay >= 2000000 ? 2 : 3;
 }
 
 // ---------------------------------------------------------------------------------------------

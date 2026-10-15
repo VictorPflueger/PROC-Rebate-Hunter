@@ -49,7 +49,7 @@ export function $$(selector, root = document) {
   return [...root.querySelectorAll(selector)];
 }
 
-/** Escapes text for the rare places that need an HTML string (Leaflet tooltips). */
+/** Escapes text for the rare places that need an HTML string (the Navigator's map tooltips; shared shell). */
 export function escapeHtml(text) {
   return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }

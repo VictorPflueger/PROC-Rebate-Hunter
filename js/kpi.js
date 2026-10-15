@@ -117,7 +117,7 @@ export function createKpis(container) {
       const estimate = p.stage === "estimate";
       const tone = p.basis === "what_if" ? "at-risk" : p.value_at_risk_eur > 0 ? (estimate ? "at-risk" : "affected") : estimate ? "muted" : "resolved";
       set(atRisk, eurCompact(p.value_at_risk_eur), tone, `${p.horizon_days || 400}-day exposure${p.label ? `, ${p.label}` : ""}`);
-      if (p.projected_eur > 0) atRisk.sub.title = `${atRisk.sub.textContent}; includes ${eurCompact(p.projected_eur)} projected for the running year`;
+      if (p.projected_eur > 0) atRisk.sub.title = `${atRisk.sub.textContent}; includes ${eurCompact(p.projected_eur)} projected for the current year`;
     }
     if ("first_loss_day" in p) {
       // The tile names whose claim and when, as briefly as the Navigator's "Leipzig, Mon 19 Oct":

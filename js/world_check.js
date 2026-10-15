@@ -6,6 +6,7 @@ import { simulateRebate } from "./rebate.js";
 import { checkSimRuns } from "./sim_check.js";
 import { sequenceRatio } from "./similarity.js";
 import { eurCompact } from "./format.js";
+import { groupView, raceView } from "./board_data.js";
 
 /**
  * @returns {{ok: boolean, checks: Array<{name: string, ok: boolean, detail: string}>, stats: object}}
@@ -73,12 +74,22 @@ export function checkWorld(world, scenarios = [], referenceCases = {}, simRuns =
   const differ = model.registerByVendor.get("40001")?.group !== model.registerByVendor.get("40002")?.group;
   add("Look-alike pair (Apex) is similar by name but in different register groups", sim > 0.6 && differ, `name similarity ${(sim * 100).toFixed(1)} %, ${differ ? "different groups" : "same group"}`);
 
-  // ---- coordinates -------------------------------------------------------------------------------------
-  const coordIssues = [];
-  for (const x of [...world.vendors, ...world.company_codes, ...world.groups]) {
-    if (!(x.lat >= -90 && x.lat <= 90 && x.lon >= -180 && x.lon <= 180)) coordIssues.push(x.id);
+  // ---- the rebate board can draw every agreement ---------------------------------------------------------
+  const boardIssues = [];
+  for (const a of world.agreements) {
+    const g = groupView(model, a.id);
+    const race = raceView(model, a.id);
+    if (!g || !g.accounts.length) { boardIssues.push(`${a.id}: no accounts`); continue; }
+    for (const x of g.accounts) if (!(x.spend_ay_eur > 0)) boardIssues.push(`${a.id}: ${x.id} has no spend at a contract rate`);
+    if (g.accounts.filter((x) => x.linked).length !== a.linked.length) boardIssues.push(`${a.id}: linked accounts missing from the ring`);
+    if (!race?.rows.some((r) => r.year === "AY")) { boardIssues.push(`${a.id}: no agreement-year race`); continue; }
+    for (const r of race.rows) {
+      const sum = r.segments.reduce((s, x) => s + x.eur, 0);
+      if (Math.abs(sum - r.total_eur) > r.segments.length) boardIssues.push(`${a.id} ${r.year}: segments ${sum} ≠ total ${r.total_eur}`);
+      if (!(race.scale_max >= Math.max(r.total_eur, ...a.tiers.map((t) => t.from_eur)))) boardIssues.push(`${a.id} ${r.year}: scale below the bar or a tier`);
+    }
   }
-  add("All locations have valid coordinates", coordIssues.length === 0, coordIssues.join(", ") || "valid");
+  add("The rebate board can draw every agreement (accounts, ring, race scale)", boardIssues.length === 0, boardIssues.slice(0, 5).join(" | ") || `${world.agreements.length} agreements drawn`);
 
   // ---- scenarios touch an agreement and at least two accounts ------------------------------------------
   for (const sc of scenarios) {

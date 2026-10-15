@@ -1,10 +1,10 @@
 // UI orchestrator: builds the components, wires controls and dialogs, starts run producers and
-// translates run events into map, drawer and state changes. The UI never branches on which
-// producer is running; only the mode badge reads the mode.
+// translates run events into drawer and state changes (the rebate board follows the run events
+// itself). The UI never branches on which producer is running; only the mode badge reads the mode.
 
 import { bus, newRunId } from "./events.js";
 import { getState, setState, subscribe, isRunning, isFinished } from "./state.js";
-import { createMap } from "./map.js";
+import { createBoard } from "./board.js";
 import { createConsole } from "./console.js";
 import { createKpis } from "./kpi.js";
 import { createDrawer } from "./drawer.js";
@@ -33,7 +33,7 @@ export function initUI() {
 
   // ---- components ------------------------------------------------------------------------------
   const badge = document.getElementById("mode-badge");
-  const map = createMap(document.getElementById("map"), {});
+  const board = createBoard(document.getElementById("board"), { scenarios, initialScenario: getState().scenarioId });
   const consoleUI = createConsole(document.getElementById("console"), {
     onOpenOptions: () => drawer.show("options"),
     onOpenOutbox: () => drawer.show("outbox"),
@@ -45,7 +45,7 @@ export function initUI() {
   });
   const kpis = createKpis(document.getElementById("kpis"));
   const drawer = createDrawer(document.getElementById("drawer"), {
-    onToggle: () => setTimeout(() => map.invalidate(), 260)
+    onToggle: () => setTimeout(() => board.invalidate(), 260)
   });
   const optionsPanel = createOptionsPanel(drawer.panel("options"), {
     onDecision: (d) => {
@@ -84,7 +84,7 @@ export function initUI() {
     onLiveScan: () => start("scan"),
     onSelectScenario: (id) => {
       setState({ scenarioId: id, entry: "scenario" });
-      if (!isRunning(getState())) map.focus(byId(id)?.map_focus);
+      if (!isRunning(getState())) board.focusScenario(id);
     },
     onSelectCustom: async () => {
       const text = await askCustomScenario(getState().customText);
@@ -136,16 +136,6 @@ export function initUI() {
   bus.on("run_end", (ev) => {
     const st = ev.payload.status;
     setState({ runState: st === "done" || st === "no_findings" ? "done" : st === "incomplete" ? "stopped" : st });
-  });
-  bus.on("map_update", (ev) => {
-    const p = ev.payload;
-    map.mark(p);
-    if (p.focus) map.focus(p.focus);
-    if (Array.isArray(p.fit)) map.fitIds(p.fit);
-  });
-  bus.on("alert", (ev) => {
-    const p = ev.payload;
-    map.mark({ vendor_ids: p.vendor_ids || [], link_ids: p.link_ids || [], group_ids: p.group_ids || [], state: "affected" });
   });
   bus.on("options", () => drawer.show("options"));
   bus.on("action_draft", () => drawer.show("outbox"));
@@ -207,7 +197,6 @@ export function initUI() {
         ...(recorded ? { recorded_on: def.recorded?.at ? dateWithYear(def.recorded.at) : null, recorded_model: modelLabel(def.recorded?.model) } : {})
       } : {})
     });
-    if (entry === "scenario" && scenario?.map_focus) map.focus(scenario.map_focus);
 
     if (mode === "simulation") {
       if (!def) {
@@ -232,8 +221,8 @@ export function initUI() {
     if (agent.isActive()) agent.abort("Reset by the user.");
     bus.endRun();
     consoleUI.reset();
-    map.clearStates();
-    if (!silent) map.showNetwork();
+    board.reset();
+    if (!silent) board.focusScenario(getState().scenarioId);
     kpis.reset();
     optionsPanel.reset();
     outbox.reset();
@@ -252,7 +241,7 @@ export function initUI() {
     if (!introSeen() && !document.querySelector(".modal-backdrop")) showIntro();
   }
 
-  return { map, start, resetWorkspace, showIntro, introOnFirstVisit };
+  return { board, start, resetWorkspace, showIntro, introOnFirstVisit };
 }
 
 /** Transient banner under the header (also used for file:// and library warnings). */
