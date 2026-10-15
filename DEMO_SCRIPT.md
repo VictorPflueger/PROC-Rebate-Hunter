@@ -2,7 +2,7 @@
 
 **Audience:** partners, principals, procurement and finance leads, later clients. **Goal:** in eight minutes they should be able to repeat one sentence: *"We find in minutes the rebates we earned but never claimed, what they are worth, by when we must claim them, and the cheapest way to get the money back."*
 
-**Recommended run:** Scenario 1, **Cisco acquisitions**, in **Live** mode on **Sonnet 5.5**. The tip names two acquired companies, Meraki and Acacia, that invoice on their own accounts. The agent checks the subscription register and finds a third the tip missed, Splunk, then confirms it in the live Global LEI Index and Cisco's own announcements, and corrects itself in front of the audience. With all three, the Cisco group bought €52.4M in the agreement year and crossed the €50m threshold: 2 % = €1,048,000, with the claim deadline about a month away. Every figure comes from the deterministic engine, so the numbers are the same in every run.
+**Recommended run:** Scenario 1, **Cisco acquisitions**, in **Live** mode on **Sonnet 5.5**. The tip names two acquired companies, Meraki and Acacia, that invoice on their own accounts. The agent checks the subscription register and finds a third the tip missed, Splunk, then confirms it in the live Global LEI Index and Cisco's own announcements, and corrects itself in front of the audience. With all three, the Cisco group bought €52.4M in the agreement year that just closed and crossed the €50M threshold: 2 % = €1,048,000, with the claim deadline about a month away. Every figure comes from the deterministic engine, so the numbers are the same in every run.
 
 **Alternatives:** Scenario 3, **Apex look-alikes**, shows the opposite discipline: two accounts that look like one supplier (67 % name similarity) are *not* merged, because the register puts them in different groups. Scenario 5, **Schneider Electric and AVEVA**, has the most urgency: the claim window closes in days.
 
@@ -13,7 +13,7 @@
 ## Pre-flight (30 minutes before, on the presentation laptop and network)
 
 1. Open the site in Chrome or Edge and hard-reload (**Ctrl + Shift + R**). On a browser's first visit the **How Rebate Hunter works** window opens by itself; close it. Close other tabs and silence notifications. Plug in the power and disable sleep.
-2. Click **Diagnostics → Run all tests**. Check that every row passes and that the footer shows **Rebate Hunter 7.0.0**.
+2. Click **Diagnostics → Run all tests**. Check that every row passes and that the footer shows **Rebate Hunter 7.1.0**.
    - The **GLEIF**, **Wikidata** and **ECB** rows show what the open data returned (for example today's pound rate). A failed row is fine: the agent says so on screen and verifies through another source or web search. GLEIF does not document whether web pages may call it, so this row is the one to look at on a new network.
    - Optional: **Test web search on my key** (≈ €0.0001) confirms that your organisation allows web search.
 3. Do one full **Live** rehearsal of the scenario. It enters your key (Start agent → **Continue with my API key** → paste → **Check key and continue**) and confirms timing and cost: the console's last line shows the **Run facts**. Then click **Reset**. **Keep this tab open.** The key lives only in this tab.
@@ -25,9 +25,9 @@
 
 | Time | Segment | On screen |
 |---|---|---|
-| 0:00–0:30 | Hook | Idle workspace: GlobalCorp's company codes, vendor accounts and supplier groups on the map, empty KPI tiles |
+| 0:00–0:30 | Hook | Idle workspace: the rebate board on the Cisco group and the year-end report's count, empty KPI tiles |
 | 0:30–1:00 | Mode choice | Mode dialog: Simulation or Live agent |
-| 1:00–5:00 | The run | Console, map and KPIs fill live; options open in the drawer |
+| 1:00–5:00 | The run | Console, rebate board and KPIs fill live; options open in the drawer |
 | 5:00–7:00 | Decision, outbox, summary | Approval, claim letter and master-data request, management summary, audit export |
 | 7:00–8:00 | Audience what-if | Custom what-if typed from the room (Live only) |
 
@@ -35,9 +35,9 @@
 
 ## 1. Hook (0:00–0:30)
 
-On screen: the idle map. The three burgundy squares are GlobalCorp's company codes in Frankfurt, Birmingham and Lyon; the dots are vendor accounts, darker for more spend; the lines across the Atlantic are register links from each account to its supplier group. If the room needs a picture of the flow first, click **How it works** in the header: its five steps (spot, check, calculate, propose, prepare) are the run you are about to show, and its **Start agent** button leads straight into segment 2.
+On screen: the rebate board. In the middle is the Cisco group. The two accounts on its ring are linked to the Cisco rebate agreement, so the year-end report counts them; the faded ones outside are accounts the agreement does not know. The bar above is the threshold race: what the report counted in the closed year, €32.3 million, against Cisco's €50 million tier, and under it the current year, which the report has not run yet. The burgundy chips are GlobalCorp's own company codes that Cisco bills, with their city. If the room needs a picture of the flow first, click **How it works** in the header: its five steps (spot, check, calculate, propose, prepare) are the run you are about to show, and its **Start agent** button leads straight into segment 2.
 
-> "This is GlobalCorp, a fictional industrial group buying from real suppliers: Cisco, Microsoft, Broadcom, Schneider Electric, Salesforce. They all pay volume rebates, but only if the buyer counts its purchases from the whole supplier group, and claims in time. After a few acquisitions, nobody does. Let's watch an AI agent find the money in about four minutes, and ask for permission before it does anything."
+> "This is GlobalCorp, a fictional industrial group buying from real suppliers: Cisco, Microsoft, Broadcom, Schneider Electric, Salesforce. They all pay volume rebates, but only if the buyer counts its purchases from the whole supplier group, and claims in time. After a few acquisitions, nobody does. Our own report says Cisco is far from its threshold. Let's watch an AI agent check that in about four minutes, and ask for permission before it does anything."
 
 Point at the five steps above the console, the agent's plan. One sentence on the colours, if the room is new to the screen:
 
@@ -60,14 +60,14 @@ Narrate what the console shows; do not read it out. The left column says what to
 | Console moment | You say |
 |---|---|
 | **Phase: Scanning.** The opening line restates the tip: Meraki and Acacia invoices sit on their own accounts and never count towards the Cisco rebate | "This is how lost money arrives: as a hunch from a category manager, not as a report." |
-| ERP calls: `erp_get_agreement`, `erp_list_vendors`; **Hypothesis:** the two accounts carry no Cisco group key | "First question: what does the contract count, and which of our accounts does it know? Only two are linked." |
+| ERP calls: `erp_get_agreement`, `erp_list_vendors`; **Hypothesis:** the two accounts carry no Cisco group key; the race shows the agent's **First estimate** (violet chip): with Meraki and Acacia the bar still stops short of the €50M tick | "First question: what does the contract count, and which of our accounts does it know? Only two are linked. Even with the two from the tip, Cisco stays below the threshold. A lazy analyst would stop here." |
 | **Check:** `erp_family_tree` (the subscription register), `open_gleif_parent` (the Global LEI Index, live) and web search with sources | "Now it refuses to trust a name. It asks the register who really belongs to Cisco, and checks it against the official LEI index and Cisco's own announcements." |
 | **Revised: two acquired accounts → three** | "Watch this: the tip said two. The register says three: Splunk belongs to Cisco since March 2024, and nobody linked it either. It corrects itself in public." |
-| **Alert card** with **Checked in this run:**; the three accounts and their register links turn red on the map | "Only now, with the register and an independent source behind every account, does it raise a verified alert. The last line lists what was actually checked, from the tool results, not from the agent's words." |
-| **Phase: Simulating**; `sim_rebate` calls; **Rebate at risk** and **Claim deadline in** tiles fill | "These numbers do not come from the language model. A deterministic engine calculates them from the ledger and the contract: €52.4 million in the agreement year, over the €50 million threshold, so 2 % is owed, and the claim window closes in about a month. The €2.14 million at risk is that claim plus this year's rebate, which the same gap would lose too; the do-nothing card shows the split." |
-| **Phase: Options**, **Review options**; the drawer opens with three options, *Do nothing* and the comparison bars; the rail's **Propose** step turns burgundy: **Your decision** | "Exactly three costed options next to doing nothing: claim and fix the vendor master, set it off against open Cisco invoices, or claim only. The bars show what each costs plus what is still lost. It recommends the lowest expected total, and the step has turned burgundy: nothing happens until a human decides." |
+| **Alert card** with **Checked in this run:**; on the board the three accounts outside the ring and their register links turn red, each with badges for what the run checked about it (Register, GLEIF, Web, Ledger), while the two linked accounts stay slate: the report counts them | "Only now, with the register and an independent source behind every account, does it raise a verified alert. The last line lists what was actually checked, from the tool results, not from the agent's words." |
+| **Phase: Simulating**; `sim_rebate` calls; the race recounts with Splunk: three red segments push the bar past the €50M tick, the bracket under them reads **€20.10M missed by the report**, and the chip reads **Verified count**; **Rebate at risk** and **Claim deadline in** tiles fill | "These numbers do not come from the language model. A deterministic engine calculates them from the ledger and the contract: €52.4 million in the agreement year that just closed, over the €50 million threshold, so 2 % is owed, and the claim window closes in about a month. The €2.14 million at risk is that claim plus this year's rebate, which the same gap would lose too; the do-nothing card shows the split." |
+| **Phase: Options**, **Review options**; the drawer opens with three options, *Do nothing* and the comparison bars; the board gets short, so the group becomes a band under the race (the linked accounts inside the ring, the three red ones outside); the rail's **Propose** step turns burgundy: **Your decision** | "Exactly three costed options next to doing nothing: claim and fix the vendor master, set it off against open Cisco invoices, or claim only. The bars show what each costs plus what is still lost. It recommends the lowest expected total, and the step has turned burgundy: nothing happens until a human decides." |
 
-If the run reaches the options before 5:00, use the spare time on the map (click a red account or register link: the popover shows the register entry) or open a **Reasoning** entry in the console to show the model's summarised thinking.
+If the run reaches the options before 5:00, click **Hide** on the drawer and use the spare time on the board: click a red account (its register entry and what the run checked), or the closed year in the race (every account the agreement counts, against what the report counted; the details open under the race). Or open a **Reasoning** entry in the console to show the model's summarised thinking.
 
 If a **Guardrail** line appears, point at it: "The code just refused a step, for example an amount no tool returned. The agent is told why and fixes it. That's the safety net working, in plain sight."
 
@@ -75,7 +75,9 @@ If a **Guardrail** line appears, point at it: "The code just refused a step, for
 
 Click **Approve** on the recommended option.
 
-> "I approve the recommendation. Look at the tiles: rebate at risk now shows what is left with this option, nothing here, and the accounts, their register links and the Cisco group turn green on the map."
+> "I approve the recommendation. Look at the tiles: rebate at risk now shows what is left with this option, nothing here. On the board Meraki, Acacia and Splunk slide into Cisco's ring: from now on the report counts them. Each year says *option A approved*, how the money comes back and when. Approved, not recovered: nothing is booked until Cisco pays."
+
+To show the payoff on the full board, click **Hide** for a moment: the three accounts glide onto the ring. Then reopen the **Outbox**.
 
 The agent drafts the actions. The **Outbox** opens with a claim letter to Cisco and an internal request to Master Data Management, each **Pending approval**.
 
@@ -112,10 +114,10 @@ Close while it works:
 **Slow response (nothing new in the console for 20 seconds).** The status pill shows the phase and the stopwatch keeps running. Say:
 > "It's waiting for the model. Real reasoning has real latency; I'd rather show you that than a pre-recorded video."
 
-Use the pause to explain the map or the KPI tiles. If nothing has moved for about a minute, click **Abort**, set Replay to **×2**, then click **New run → Run simulation**:
+Use the pause to explain the board or the KPI tiles. If nothing has moved for about a minute, click **Abort**, set Replay to **×2**, then click **New run → Run simulation**:
 > "Let's switch to the replay of this scenario. Same interface, clearly labelled SIMULATION."
 
-**API error, network loss or Wi-Fi problems.** The console states the cause in plain words (rate limit, network, key). Switch to the phone hotspot if it is quick; otherwise run the Simulation, which needs no network beyond map tiles and runs fully offline. If the tiles are blocked, the map falls back to an offline coastline map.
+**API error, network loss or Wi-Fi problems.** The console states the cause in plain words (rate limit, network, key). Switch to the phone hotspot if it is quick; otherwise run the Simulation, which needs no network at all.
 
 **An open-data source fails mid-run.** The console says which one and that the agent falls back to another source or web search. Say:
 > "The LEI index isn't reachable from this network. Notice it doesn't pretend: it says so and checks another way."
@@ -142,6 +144,7 @@ Then run Scenario 1 or 5.
 | "Could it run on our data?" | "Yes. The agent talks to the company through a handful of tools: agreements, vendor master, ledger, the group register, the rebate report. Point those at your ERP and your corporate-hierarchy subscription, and the guardrails stay the same." |
 | "Which model is this?" | "Claude Sonnet 5.5 by default; Haiku for speed and cost, Opus for depth. It's a dropdown." |
 | "Why these colours?" | "Each colour means one thing: burgundy is a person deciding, violet is the AI, red, amber and green are the money. The whole palette is generated from one burgundy and tested for contrast and colour blindness. It's the same design system as our supply-chain Navigator." |
+| "Why is there no map?" | "Because a rebate doesn't depend on where a supplier sits. It depends on who belongs to the supplier group, whether the contract counts them, and how far the spend is from the threshold. The board shows exactly those three; our supply-chain Navigator, where location matters, has the map." |
 | "Is my data safe in the browser?" | "There's no server. The key stays in this tab and only goes to Anthropic. The browser blocks the page from connecting to any other host, and Diagnostics checks that." |
 
 ## After the demo

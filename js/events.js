@@ -14,7 +14,8 @@
 //   tool_result      { call_id, name, ok, summary, result, server, sources? }
 //   alert            { title, severity, basis: "verified"|"what_if", summary, sources:[{title,url}], evidence?: [text],
 //                      vendor_ids?, group_ids?, link_ids? }
-//   map_update       { vendor_ids?, link_ids?, group_ids?, company_code_ids?, state, fit?, focus?, source? }
+//   board_update     { vendor_ids?, link_ids?, group_ids?, company_code_ids?, agreement_ids?, state, focus?, view?, source?,
+//                      option_id?, linked_vendor_ids? }   decision payoffs carry the option and the accounts it links
 //   kpi_update       { value_at_risk_eur?, projected_eur?, horizon_days?, first_loss_day?, first_loss_label?, first_loss_short?,
 //                      basis?, stage?: "estimate"|"verified", label? }
 //                    after a decision: { decided, accepted?, option_label, residual_eur?, total_eur?, before_eur, first_loss_day_after? }

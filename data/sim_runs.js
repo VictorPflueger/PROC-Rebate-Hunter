@@ -26,12 +26,12 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: a category manager says Meraki and Acacia invoices sit on their own vendor accounts and never count towards the Cisco volume rebate. First question: what does the agreement count, and which of our accounts does it know?" },
-      { map: { group_ids: ["G-CISCO"], vendor_ids: ["10001", "10002"], state: "at_risk", focus: { lat: 46.0, lon: -52.0, zoom: 2.75 } } },
+      { board: { group_ids: ["G-CISCO"], state: "at_risk" } },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-CISCO" } },
       { say: "Finding: the agreement pays 2 % on all purchases of the year once GlobalCorp buys €50m from Cisco and its affiliates. Only two accounts are linked to it: Cisco Systems Germany (10001) and Cisco Technology (10002)." },
       { tool: "erp_list_vendors", input: { query: "Cisco, Meraki, Acacia" } },
       { say: "Hypothesis: the tip is right. Meraki Cloud Networks (10003) and Acacia Communications Opto (10004) billed €9.5M and €6.2M last year without the Cisco group key, so the year-end report never counted them." },
-      { map: { vendor_ids: ["10003", "10004"], link_ids: ["L-10003", "L-10004"], state: "at_risk" } },
+      { board: { vendor_ids: ["10003", "10004"], link_ids: ["L-10003", "L-10004"], state: "at_risk" } },
 
       { state: "verifying" },
       { web: {
@@ -79,7 +79,7 @@ window.SIM_RUNS = {
       { say: "Finding: the ledger confirms the spend of all five accounts, and the year-end report counted only the two linked ones. It stayed below the threshold and filed no claim: the report follows group keys, not the corporate family." },
       { rebate: "finding" },
       { say: "Impact: Cisco owes {{AY.owed_full}} for the agreement year, {{AY.tier}} of {{AY.spend}}. If nothing changes, that claim expires on {{AY.deadline_date}}, in {{AY.deadline_day}} days, and next year's {{CY.open}} slips the same way: {{var}} at risk." },
-      { map: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "affected", fit: ["10001", "10002", "10003", "10004", "10005", "G-CISCO", "CC-1000"] } },
+      { board: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "affected" } },
       { tool: "erp_get_vendor", input: { vendor_id: "10001" } },
       { say: "Response levers: a written claim needs three days of preparation; § 9.1 lets us set the undisputed rebate off against open Cisco invoices once Cisco has had seven days to object; and linking the three accounts in the vendor master takes about 20 days, in time for this year's report." },
 
@@ -126,7 +126,7 @@ window.SIM_RUNS = {
               subject: "Set group key CISCO on vendor accounts 10003, 10004 and 10005",
               body: "Request: maintain the group key CISCO (vendor master field KONZS) on these accounts and link them to agreement RA-CISCO:\n- 10003 Meraki Cloud Networks Ltd.\n- 10004 Acacia Communications Opto\n- 10005 Splunk Software EMEA\n\nWhy: the subscription register lists all three as Cisco companies. Without the link the year-end report misses their spend, and this year's rebate of {{CY.open}} would slip like the last one.\n\nPlease complete within 20 days and confirm to Procurement Controlling."
             } },
-            { map: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } },
+            { board: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Cisco: rebate decision\n\n**What we found.** Meraki, Acacia and Splunk invoice GlobalCorp on their own vendor accounts without the Cisco group key. The subscription register lists all three as Cisco companies, confirmed by GLEIF and Cisco's announcements. Counted together, the Cisco group bought {{AY.spend}} in the agreement year and crossed the 2 % threshold.\n\n**If we do nothing.** The claim of {{AY.owed}} expires on {{AY.deadline_date}}, and the running year slips the same way: **{{var}}** lost.\n\n**Decision.** Option A approved: a written claim now, and the three accounts linked to the agreement.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Residual risk.** Cisco may ask for evidence per account before it issues the credit note.\n\n**How we know.** Accounts and spend from the vendor master and ledger; membership from the subscription register, GLEIF and Cisco's announcements; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -149,7 +149,7 @@ window.SIM_RUNS = {
               subject: "Set group key CISCO on vendor accounts 10003, 10004 and 10005",
               body: "Request: maintain the group key CISCO (vendor master field KONZS) on 10003 Meraki, 10004 Acacia and 10005 Splunk, and link them to agreement RA-CISCO. The register lists all three as Cisco companies. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } },
+            { board: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Cisco: rebate decision\n\n**What we found.** Meraki, Acacia and Splunk invoice GlobalCorp outside the Cisco agreement; the register, GLEIF and Cisco's announcements confirm they are Cisco companies. Together the group crossed the 2 % threshold.\n\n**If we do nothing.** **{{var}}** lost: the agreement-year claim expires on {{AY.deadline_date}}, and the running year slips too.\n\n**Decision.** Option B approved: set-off against open Cisco invoices, and the three accounts linked. Response cost {{V2.cost}}; rebate still lost {{V2.res}}; expected total {{V2.total}}; cash on day {{V2.time}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox (drafts only, nothing sent or posted).\n\n**Residual risk.** A set-off before Cisco confirms can strain the relationship.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -188,12 +188,12 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: the licence team says Activision Blizzard belongs to Microsoft, but its invoices sit on a separate vendor account. First question: what does the Microsoft agreement pay, and when can it still be claimed?" },
-      { map: { group_ids: ["G-MSFT"], vendor_ids: ["20001", "20002"], state: "at_risk", focus: { lat: 48.2, lon: 11.6, zoom: 8 } } },
+      { board: { group_ids: ["G-MSFT"], state: "at_risk" } },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-MSFT" } },
       { say: "Finding: the volume incentive pays 2 % on all purchases of a year once Microsoft and its affiliates reach €50m. Only Microsoft Deutschland (20001) is linked, and § 11.3 lets us claim missed rebates for 15 months after a year ends." },
       { tool: "erp_list_vendors", input: { query: "Microsoft, Activision" } },
       { say: "Hypothesis: Activision Blizzard Germany (20002) lifts this agreement year over the threshold. Microsoft Deutschland billed €41.0M and Activision €6.0M in the last agreement year." },
-      { map: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "at_risk" } },
+      { board: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "at_risk" } },
 
       { state: "verifying" },
       { web: {
@@ -238,7 +238,7 @@ window.SIM_RUNS = {
       { tool: "erp_get_rebate_report", input: { agreement_id: "RA-MSFT" } },
       { rebate: "finding" },
       { say: "Impact: for the previous agreement year Microsoft owes {{PY.owed_full}}, {{PY.tier}} of {{PY.spend}}. The look-back window closes on {{PY.deadline_date}}, in {{PY.deadline_day}} days; the agreement year just closed stays below the threshold." },
-      { map: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "affected", fit: ["20001", "20002", "CC-1000"] } },
+      { board: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "affected" } },
       { say: "Response levers: Microsoft allows no set-off, so the money comes by credit note. A look-back claim needs an audit pack of about ten person-days; a recovery-audit firm would do it on contingency but needs about 35 days." },
 
       { options: {
@@ -284,7 +284,7 @@ window.SIM_RUNS = {
               subject: "Audit pack for the Microsoft look-back claim, agreement year {{PY.period}}",
               body: "Please compile, within ten days, every invoice of vendor accounts 20001 Microsoft Deutschland GmbH and 20002 Activision Blizzard Germany for the agreement year {{PY.period}}, with the register extract showing Activision as a Microsoft company.\n\nThe claim of {{PY.owed_full}} must reach Microsoft by {{PY.deadline_date}}."
             } },
-            { map: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "resolved" } },
+            { board: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Microsoft: rebate decision\n\n**What we found.** Activision Blizzard invoices GlobalCorp on its own account, so the year-end report never counted it. The agreement year just closed stays below the €50m threshold, an honest negative. The previous year crossed it, and the 15-month look-back clause still covers it.\n\n**If we do nothing.** The look-back window closes on {{PY.deadline_date}}: **{{var}}** lost.\n\n**Decision.** Option A approved: file the look-back claim ourselves.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Residual risk.** Microsoft may contest individual Activision invoices.\n\n**How we know.** Clause and spend from the ERP and ledger; membership from the register, GLEIF and Microsoft's announcement; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -314,7 +314,7 @@ window.SIM_RUNS = {
               subject: "Set group key MICROSOFT on vendor account 20002",
               body: "Request: maintain the group key MICROSOFT (KONZS) on 20002 Activision Blizzard Germany and link it to agreement RA-MSFT. The register lists Activision as a Microsoft company since 13 October 2023. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "resolved" } },
+            { board: { vendor_ids: ["20002"], link_ids: ["L-20002"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Microsoft: rebate decision\n\n**What we found.** Activision Blizzard is a Microsoft company invoiced outside the agreement; the previous year crossed the threshold.\n\n**If we do nothing.** **{{var}}** lost on {{PY.deadline_date}}.\n\n**Decision.** Option C approved: claim the previous year and link Activision. Response cost {{V3.cost}}; rebate still lost {{V3.res}}; expected total {{V3.total}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent).\n\n**Residual risk.** None within the horizon; the link protects future threshold years.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -341,7 +341,7 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: the duplicate-vendor check says Apex Robotics Solutions GmbH and Apex Robotics Systems Ltd. look like one supplier. First question: are they one company, or two that only sound alike?" },
-      { map: { vendor_ids: ["40001", "40002"], state: "at_risk", focus: { lat: 51.0, lon: 3.5, zoom: 5 } } },
+      { board: { vendor_ids: ["40001", "40002"], state: "at_risk" } },
       { tool: "erp_find_duplicates", input: { vendor_id: "40001" } },
       { say: "Hypothesis: one supplier with two accounts. The names are 66.7 % alike, but the same check also flags three unrelated robotics firms above its 60 % rule, which shows how loose a name match is." },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-APEX" } },
@@ -364,7 +364,7 @@ window.SIM_RUNS = {
         } },
       { say: "Not confirmed: the register puts Apex Robotics Solutions under Apex Robotics Holding AG in Germany and Apex Robotics Systems under Apex Industrial Group plc in the UK, with different tax ids and banks. GLEIF has no record of either, so nothing supports a merge." },
       { say: "Revised: one supplier with two accounts → two unrelated companies. Apex Robotics Systems (40002) stays out: merging them would claim a bonus on another company's purchases." },
-      { map: { vendor_ids: ["40002"], state: "neutral" } },
+      { board: { vendor_ids: ["40002"], state: "neutral" } },
       { tool: "erp_get_rebate_report", input: { agreement_id: "RA-APEX" } },
       { say: "Confirmed: on its own, Apex Robotics Solutions still earned the 1.5 % tier, which starts at €2m. The year-end report lists Apex only from €5m, so the smaller bonus was never claimed." },
       { alert: {
@@ -384,7 +384,7 @@ window.SIM_RUNS = {
       { tool: "erp_get_vendor", input: { vendor_id: "40001" } },
       { rebate: "finding" },
       { say: "Impact: Apex owes {{AY.owed_full}} for the agreement year, {{AY.tier}} of {{AY.spend}}, and the claim window closes on {{AY.deadline_date}}, in {{AY.deadline_day}} days. Next year's {{CY.open}} slips the same way unless the report rule changes: {{var}} at risk." },
-      { map: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "affected", fit: ["40001", "40002", "G-APEX-DE", "G-APEX-GB", "CC-1000"] } },
+      { board: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "affected" } },
       { say: "Response levers: two days to prepare a claim; § 7 allows set-off against open Apex invoices; a change request removes the report's €5m floor within about 15 days." },
 
       { options: {
@@ -430,7 +430,7 @@ window.SIM_RUNS = {
               subject: "Change request: year-end rebate report to list every tier reached",
               body: "Request: remove the minimum of €5.0m in the year-end rebate report, so that every agreement is listed as soon as it reaches its first tier.\n\nWhy: Apex Robotics Solutions reached the 1.5 % tier of the Apex agreement, but the report did not list it, and the bonus of {{AY.owed_full}} was never claimed. Next year's {{CY.open}} would be missed the same way.\n\nPlease implement within 15 days."
             } },
-            { map: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "resolved" } },
+            { board: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Apex: rebate decision\n\n**What we found.** The duplicate check's look-alike pair are two unrelated companies: the register puts them in different groups, and GLEIF knows neither. Apex Robotics Solutions alone reached the 1.5 % volume-bonus tier, but the year-end report lists Apex only from €5m.\n\n**If we do nothing.** The bonus of {{AY.owed}} lapses on {{AY.deadline_date}}, and next year's stays hidden: **{{var}}** lost.\n\n**Decision.** Option A approved: claim the bonus and fix the report rule.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Avoided.** Merging the look-alike would have claimed the 3 % tier on another company's purchases; that claim was not made.\n\n**Residual risk.** Apex may question the tier until it reconciles its own invoices.\n\n**How we know.** The duplicate check, the register and GLEIF for the companies; clause, ledger and report from the ERP; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -453,7 +453,7 @@ window.SIM_RUNS = {
               subject: "Change request: year-end rebate report to list every tier reached",
               body: "Request: remove the report's €5.0m minimum so every agreement is listed from its first tier. Please implement within 15 days."
             } },
-            { map: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "resolved" } },
+            { board: { vendor_ids: ["40001"], link_ids: ["L-40001"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Apex: rebate decision\n\n**What we found.** The look-alike accounts are two unrelated companies. Apex Robotics Solutions alone reached the 1.5 % tier, hidden by the report's €5m floor.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option B approved: set off the bonus and fix the report. Response cost {{V2.cost}}; rebate still lost {{V2.res}}; expected total {{V2.total}}; cash on day {{V2.time}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent or posted).\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -492,13 +492,13 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: IT procurement asks why VMware licences are still invoiced by VMware International in Ireland, and why Broadcom's statement credited only 1 %. First question: how does the Broadcom rebate work?" },
-      { map: { group_ids: ["G-AVGO"], vendor_ids: ["50001", "50002"], state: "at_risk", focus: { lat: 46.0, lon: -52.0, zoom: 2.75 } } },
+      { board: { group_ids: ["G-AVGO"], state: "at_risk" } },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-AVGO" } },
       { say: "Finding: the rebate is tiered, 1 % from €10m, 2 % from €20m and 3 % from €30m, on all purchases of the year. Broadcom credits what its own statement shows for the accounts on its record, and differences must be claimed within 60 days; there is no set-off." },
       { tool: "erp_get_rebate_report", input: { agreement_id: "RA-AVGO" } },
       { tool: "erp_list_vendors", input: { query: "VMware" } },
       { say: "Hypothesis: VMware International Unlimited Co. (50003), with €14.9M last year, belongs to Broadcom and lifts the group to the 2 % tier." },
-      { map: { vendor_ids: ["50003"], link_ids: ["L-50003"], state: "at_risk" } },
+      { board: { vendor_ids: ["50003"], link_ids: ["L-50003"], state: "at_risk" } },
 
       { state: "verifying" },
       { open: "open_gleif_parent", input: { lei: "549300QDZDZP3SLIME17" },
@@ -542,7 +542,7 @@ window.SIM_RUNS = {
       { tool: "erp_get_spend", input: { vendor_ids: ["50001", "50002", "50003", "50004"], agreement_id: "RA-AVGO" } },
       { rebate: "finding" },
       { say: "Impact: at {{AY.tier}} on {{AY.spend}}, Broadcom owes {{AY.owed_full}}; its statement credited {{AY.credited_full}}, so {{AY.open_full}} is open until {{AY.deadline_date}}. The previous year's difference of {{lost}} is already lost: that statement became final." },
-      { map: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "affected", fit: ["50001", "50002", "50003", "50004", "G-AVGO", "CC-1000"] } },
+      { board: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "affected" } },
       { say: "Response levers: no set-off, so a written claim for the difference, with three days of preparation; linking both VMware accounts puts them on Broadcom's record for the running year." },
 
       { options: {
@@ -588,7 +588,7 @@ window.SIM_RUNS = {
               subject: "Set group key BROADCOM on vendor accounts 50003 and 50004",
               body: "Request: maintain the group key BROADCOM (KONZS) on 50003 VMware International Unlimited Co. and 50004 VMware Global Inc., and link both to agreement RA-AVGO. The register lists both as Broadcom companies.\n\nWithout the link Broadcom's statement misses VMware again, and this year's difference of {{CY.open}} would slip. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "resolved" } },
+            { board: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Broadcom: rebate decision\n\n**What we found.** Two VMware accounts invoice GlobalCorp outside Broadcom's rebate record. The register and GLEIF confirm both as Broadcom companies. With them the group reached {{AY.spend}} and the 3 % tier, while the statement credited the 1 % tier.\n\n**If we do nothing.** The difference of {{AY.open}} becomes final on {{AY.deadline_date}}, and the running year slips too: **{{var}}** lost. The previous year's {{lost}} is already lost.\n\n**Decision.** Option A approved: claim the difference and link both VMware accounts.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Residual risk.** Broadcom may ask for invoice evidence per VMware entity.\n\n**How we know.** Membership from the register and GLEIF; spend from the ledger; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -613,7 +613,7 @@ window.SIM_RUNS = {
               subject: "Set group key BROADCOM on vendor accounts 50003 and 50004",
               body: "Request: maintain the group key BROADCOM (KONZS) on 50003 VMware International Unlimited Co. and 50004 VMware Global Inc., and link both to agreement RA-AVGO, so that this year's statement counts them. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "resolved" } },
+            { board: { vendor_ids: ["50003", "50004"], link_ids: ["L-50003", "L-50004"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Broadcom: rebate decision\n\n**What we found.** Two VMware accounts are Broadcom companies outside Broadcom's record; with them the group reached the 3 % tier.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option C approved: link both VMware accounts only. Response cost {{V3.cost}}; rebate still lost {{V3.res}}; expected total {{V3.total}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent).\n\n**Residual risk.** The closed year's difference of {{AY.open}} becomes final unclaimed on {{AY.deadline_date}}.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -640,12 +640,12 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: AVEVA's account manager says AVEVA's licences should count towards our Schneider framework agreement, and that agreement year closed almost three months ago. First question: how long is the claim window?" },
-      { map: { group_ids: ["G-SCHN"], vendor_ids: ["60001", "60002"], state: "at_risk", focus: { lat: 51.5, lon: 1.5, zoom: 6 } } },
+      { board: { group_ids: ["G-SCHN"], state: "at_risk" } },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-SCHN" } },
       { say: "Finding: Schneider credits 2.5 % on all purchases of the year from €15m, and § 4.6 excludes claims made more than 90 days after the year end. The window is nearly over, so speed matters." },
       { tool: "erp_list_vendors", input: { query: "Schneider, AVEVA" } },
       { say: "Hypothesis: the clause speaks of GlobalCorp's purchases, so I start with central procurement: Schneider Electric GmbH (60001) and AVEVA Solutions (60003), both invoiced to GlobalCorp SE in Frankfurt. The UK company's account, Schneider Electric Ltd (60002), stays out for now." },
-      { map: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "at_risk" } },
+      { board: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "at_risk" } },
 
       { state: "verifying" },
       { tool: "erp_family_tree", input: { vendor_id: "60003" } },
@@ -678,7 +678,7 @@ window.SIM_RUNS = {
         title: "Schneider rebate earned, claim window closing",
         severity: "critical",
         summary: "Counted across all company codes and with AVEVA, GlobalCorp's purchases from Schneider Electric crossed the 2.5 % threshold, but AVEVA is not linked and no claim was filed. § 4.6 excludes any claim after the 90-day window.",
-        vendor_ids: ["60002", "60003"],
+        vendor_ids: ["60003"],
         group_ids: ["G-SCHN"],
         sources: [
           { title: "Schneider framework agreement § 4 and § 4.6 (ERP)" },
@@ -691,7 +691,7 @@ window.SIM_RUNS = {
       { tool: "erp_get_rebate_report", input: { agreement_id: "RA-SCHN" } },
       { rebate: "finding" },
       { say: "Impact: Schneider owes {{AY.owed_full}} for the agreement year, {{AY.tier}} of {{AY.spend}}, and the claim must reach Schneider by {{AY.deadline_date}}: {{AY.deadline_day}} days from today. After that it is excluded. Next year's {{CY.open}} follows unless AVEVA is linked." },
-      { map: { vendor_ids: ["60003"], link_ids: ["L-60003"], company_code_ids: ["CC-2000"], state: "affected", fit: ["60001", "60002", "60003", "G-SCHN", "CC-1000", "CC-2000"] } },
+      { board: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "affected" } },
       { say: "Response levers: three days to prepare the claim; § 10 allows set-off against open Schneider invoices; a recovery-audit firm would need about 35 days, far too slow for this window." },
 
       { options: {
@@ -737,7 +737,7 @@ window.SIM_RUNS = {
               subject: "Set group key SCHNEIDER on vendor account 60003",
               body: "Request: maintain the group key SCHNEIDER (KONZS) on 60003 AVEVA Solutions Ltd and link it to agreement RA-SCHN. The register lists AVEVA as a Schneider Electric company. Without it, this year's rebate of {{CY.open}} would be missed again. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["60003"], link_ids: ["L-60003"], company_code_ids: ["CC-2000"], state: "resolved" } },
+            { board: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Schneider Electric: rebate decision\n\n**What we found.** Counted across all company codes and with AVEVA, a Schneider Electric company confirmed by the register, GLEIF and AVEVA's announcement, GlobalCorp's purchases reached {{AY.spend}} and the 2.5 % tier. AVEVA was not linked and no claim was filed.\n\n**If we do nothing.** The claim of {{AY.owed}} is excluded after {{AY.deadline_date}}, in {{AY.deadline_day}} days, and next year slips too: **{{var}}** lost.\n\n**Decision.** Option A approved: claim this week and link AVEVA.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Residual risk.** The claim must leave this week; a recovery-audit firm would have been too slow.\n\n**How we know.** Clause, ledger and company codes from the ERP; membership from the register, GLEIF and Schneider's announcement; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -760,7 +760,7 @@ window.SIM_RUNS = {
               subject: "Set group key SCHNEIDER on vendor account 60003",
               body: "Request: maintain the group key SCHNEIDER (KONZS) on 60003 AVEVA Solutions Ltd and link it to agreement RA-SCHN. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["60003"], link_ids: ["L-60003"], company_code_ids: ["CC-2000"], state: "resolved" } },
+            { board: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Schneider Electric: rebate decision\n\n**What we found.** Across all company codes and with AVEVA, GlobalCorp's purchases crossed Schneider's 2.5 % threshold; no claim was filed and the window closes on {{AY.deadline_date}}.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option B approved: set-off notice this week, deduction after the objection period, and the AVEVA link. Response cost {{V2.cost}}; rebate still lost {{V2.res}}; expected total {{V2.total}}; cash on day {{V2.time}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent or posted).\n\n**Residual risk.** Schneider may dispute a set-off made this close to the deadline.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -778,7 +778,7 @@ window.SIM_RUNS = {
               subject: "Set group key SCHNEIDER on vendor account 60003",
               body: "Request: maintain the group key SCHNEIDER (KONZS) on 60003 AVEVA Solutions Ltd and link it to agreement RA-SCHN. Please complete within 20 days."
             } },
-            { map: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "resolved" } },
+            { board: { vendor_ids: ["60003"], link_ids: ["L-60003"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Schneider Electric: rebate decision\n\n**What we found.** GlobalCorp's purchases crossed Schneider's 2.5 % threshold across all company codes and with AVEVA.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option C approved: recovery-audit firm and the AVEVA link. Response cost {{V3.cost}}; rebate still lost {{V3.res}}; expected total {{V3.total}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent).\n\n**Residual risk.** The firm files after {{AY.deadline_date}}, so the agreement-year rebate of {{AY.owed}} is lost; only the running year is protected.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -805,12 +805,12 @@ window.SIM_RUNS = {
     steps: [
       { state: "scanning" },
       { say: "Signal received: UK finance says Salesforce UK and Tableau invoice GlobalCorp UK in pounds, and the year-end rebate report only shows euro invoices. First question: what does the agreement say about other currencies?" },
-      { map: { group_ids: ["G-CRM"], vendor_ids: ["70001", "70002", "70003"], state: "at_risk", focus: { lat: 51.8, lon: 2.5, zoom: 5 } } },
+      { board: { group_ids: ["G-CRM"], state: "at_risk" } },
       { tool: "erp_get_agreement", input: { agreement_id: "RA-CRM" } },
       { say: "Finding: Salesforce credits 3 % on all purchases of the year from €20m, and Annex C counts pound invoices at a fixed 1 GBP = 1.17 EUR. Three accounts are linked, but the year-end report is set up for euro invoices only." },
       { tool: "erp_get_rebate_report", input: { agreement_id: "RA-CRM" } },
       { say: "Hypothesis: the pound invoices of Salesforce UK (70003) are the gap. Converted at the contract rate, they lift the group over €20m." },
-      { map: { vendor_ids: ["70003"], state: "at_risk" } },
+      { board: { vendor_ids: ["70003"], state: "at_risk" } },
 
       { state: "verifying" },
       { open: "open_ecb_rate", input: { currency: "GBP" },
@@ -855,7 +855,7 @@ window.SIM_RUNS = {
       { state: "diagnosing" },
       { rebate: "finding" },
       { say: "Impact: Salesforce owes {{AY.owed_full}} for the agreement year, {{AY.tier}} of {{AY.spend}} at the contract rate, due by {{AY.deadline_date}}. The previous year's {{lost}} is already lost, and next year's {{CY.open}} follows unless both the report rule and Tableau's link are fixed: {{var}} at risk." },
-      { map: { vendor_ids: ["70003", "70004"], link_ids: ["L-70004"], company_code_ids: ["CC-2000"], state: "affected", fit: ["70001", "70002", "70003", "70004", "CC-1000", "CC-2000"] } },
+      { board: { vendor_ids: ["70003", "70004"], link_ids: ["L-70004"], company_code_ids: ["CC-2000"], state: "affected" } },
       { say: "Response levers: a claim within three days; set-off is allowed; changing the report to count every currency at the contract rates, and linking Tableau, each protect the running year, but only together." },
 
       { options: {
@@ -906,7 +906,7 @@ window.SIM_RUNS = {
               subject: "Change request: year-end rebate report to count every currency at contract rates",
               body: "Request: the year-end rebate report for RA-CRM counts euro invoices only. Please count invoices in every currency at the agreement's fixed rates (Annex C: 1 GBP = 1.17 EUR).\n\nWhy: the pound invoices of Salesforce UK and Tableau were left out, and the rebate of {{AY.owed_full}} was never claimed. Next year's {{CY.open}} would be missed the same way.\n\nPlease implement within 15 days."
             } },
-            { map: { vendor_ids: ["70003", "70004"], link_ids: ["L-70004"], company_code_ids: ["CC-2000"], state: "resolved" } },
+            { board: { vendor_ids: ["70003", "70004"], link_ids: ["L-70004"], company_code_ids: ["CC-2000"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Salesforce: rebate decision\n\n**What we found.** The year-end report counts only euro invoices, so Salesforce UK's pound invoices never counted, and Tableau, a Salesforce company since 2019 per the register and Salesforce's announcement, is not linked. At the contract rate of Annex C the group reached {{AY.spend}} and the 3 % tier.\n\n**If we do nothing.** The claim of {{AY.owed}} lapses on {{AY.deadline_date}}, and the running year slips too: **{{var}}** lost. The previous year's {{lost}} is already lost.\n\n**Decision.** Option A approved: claim, link Tableau and fix the currency rule.\n\n| | Do nothing | Option A |\n|---|---|---|\n| Response cost | – | {{V1.cost}} |\n| Rebate still lost | {{var}} | {{V1.res}} |\n| Expected total | {{var}} | {{V1.total}} |\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved in the outbox. They are drafts: nothing was sent.\n\n**Residual risk.** Salesforce may ask for the pound invoices per entity.\n\n**How we know.** Clause, rates and report from the ERP; membership from the register and Salesforce's announcement; the ECB rate as a cross-check; every euro figure from the deterministic rebate engine.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -924,6 +924,7 @@ window.SIM_RUNS = {
               subject: "Change request: year-end rebate report to count every currency at contract rates",
               body: "Request: count invoices in every currency at the agreements' fixed rates in the year-end rebate report (RA-CRM Annex C: 1 GBP = 1.17 EUR). Please implement within 15 days."
             } },
+            { board: { vendor_ids: ["70003"], company_code_ids: ["CC-2000"], state: "resolved" } },
             { awaitActions: true },
             { report: "## Salesforce: rebate decision\n\n**What we found.** The euro-only report left out the pound invoices; with them, and with Tableau, the Salesforce group crossed the 3 % threshold.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option B approved: claim and fix the currency rule. Response cost {{V2.cost}}; rebate still lost {{V2.res}}; expected total {{V2.total}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent).\n\n**Residual risk.** Tableau stays unlinked, so its share of next year's rebate is missed.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }
@@ -941,6 +942,7 @@ window.SIM_RUNS = {
               subject: "Set group key SALESFORCE on vendor account 70004",
               body: "Request: maintain the group key SALESFORCE (KONZS) on 70004 Tableau Software UK and link it to agreement RA-CRM. Please complete within 20 days."
             } },
+            { board: { company_code_ids: ["CC-2000"], state: "at_risk" } },
             { awaitActions: true },
             { report: "## Salesforce: rebate decision\n\n**What we found.** With the pound invoices at the contract rate and Tableau, the Salesforce group crossed the 3 % threshold.\n\n**If we do nothing.** **{{var}}** lost.\n\n**Decision.** Option C approved: claim and link Tableau. Response cost {{V3.cost}}; rebate still lost {{V3.res}}; expected total {{V3.total}}.\n\n**Actions.** {{actions.approved}} of {{actions.total}} drafts approved (drafts only, nothing sent).\n\n**Residual risk.** The report still ignores pound invoices, so next year's rebate of {{CY.open}} is missed.\n\n*Simulated run (scripted replay). Figures calculated by the rebate engine from the synthetic company.*" },
             { end: "done" }

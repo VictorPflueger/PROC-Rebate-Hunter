@@ -28,12 +28,14 @@ const P = {
   external: '<path d="M14 4.5h5.5V10M19.5 4.5L11 13M17 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/>',
   spark: '<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/><path d="M18.5 15.5l.8 2 2 .7-2 .8-.8 2-.7-2-2-.8 2-.7z"/>',
   list: '<path d="M8.5 7h11M8.5 12h11M8.5 17h11"/><circle cx="4.8" cy="7" r=".9"/><circle cx="4.8" cy="12" r=".9"/><circle cx="4.8" cy="17" r=".9"/>',
+  // A supplier group: one parent holding its companies (the board's hub; GlobalCorp's own sites keep the building).
+  hub: '<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="4.6" r="2"/><circle cx="5.6" cy="16.3" r="2"/><circle cx="18.4" cy="16.3" r="2"/><path d="M12 6.6v2.2M7.3 15.3l2-1.2M16.7 15.3l-2-1.2"/>',
   shield: '<path d="M12 3.5l7.5 3v5.5c0 4.5-3.2 7.6-7.5 8.5-4.3-.9-7.5-4-7.5-8.5V6.5z"/>',
   target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>'
 };
 
 /** Returns SVG markup for an icon name (static, trusted). */
-export function iconSvg(name, size = 20) {
+function iconSvg(name, size = 20) {
   const body = P[name] || P.info;
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
 }

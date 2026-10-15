@@ -171,7 +171,7 @@ export function createConsole(panel, { onOpenOptions, onOpenOutbox, onOpenReport
 
   bus.on("tool_call", (ev) => {
     const p = ev.payload;
-    if (isUiTool(p.name)) return; // ui_* tools are shown by their effect (alert, map, options, outbox)
+    if (isUiTool(p.name)) return; // ui_* tools are shown by their effect (alert, board, options, outbox)
     const line = p.name === "web_search"
       ? h("div", { class: "tool-line" }, h("strong", {}, "Web search"), h("span", { class: "tool-query" }, p.input?.query || ""))
       : h("div", { class: "tool-line" }, h("span", { class: "tool-name" }, p.name), h("span", { class: "tool-args" }, argsSummary(p.name, p.input)));
@@ -406,7 +406,7 @@ function isUiTool(name) {
 }
 
 const GUARD_LABEL = {
-  ui_report_alert: "The alert was", ui_mark_map: "The map update was", ui_propose_options: "The options were",
+  ui_report_alert: "The alert was", ui_mark_board: "The board update was", ui_propose_options: "The options were",
   ui_await_decision: "The wait was", ui_draft_action: "The draft was", ui_await_approvals: "The wait was",
   ui_final_report: "The management summary was"
 };

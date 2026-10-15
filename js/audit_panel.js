@@ -13,7 +13,7 @@ const GROUPS = {
   tools: { label: "Tools", types: ["tool_call", "tool_result"] },
   model: { label: "Model calls", types: ["model_call"] },
   human: { label: "Human decisions", types: ["option_decision", "action_decision"] },
-  system: { label: "System", types: ["run_start", "run_end", "state_change", "notice", "map_update", "kpi_update", "cost_update", "attempt_discarded"] }
+  system: { label: "System", types: ["run_start", "run_end", "state_change", "notice", "board_update", "kpi_update", "cost_update", "attempt_discarded"] }
 };
 
 export function createAuditPanel(panel, { onCount } = {}) {
@@ -108,7 +108,7 @@ function summarize(ev) {
     case "tool_result": return `${p.name}: ${p.ok === false ? "ERROR " : ""}${trim(p.summary || "", 200)}`;
     case "model_call": return `Step ${p.step}: ${p.messages_total ?? "?"} messages sent, stop reason ${p.stop_reason || "?"}, ${int(p.input_tokens)} in / ${int(p.output_tokens)} out tokens${p.cache_read_tokens ? ` (${int(p.cache_read_tokens)} from cache)` : ""}${p.web_searches ? `, ${p.web_searches} web search${p.web_searches === 1 ? "" : "es"}` : ""}${p.duration_ms ? `, ${(p.duration_ms / 1000).toFixed(1)} s` : ""}${p.request_id ? `, request ${p.request_id}` : ""}`;
     case "alert": return `[${p.severity}${p.basis === "what_if" ? ", what-if" : ""}] ${p.title}`;
-    case "map_update": return `${p.state}: ${[...(p.vendor_ids || []), ...(p.link_ids || []), ...(p.group_ids || []), ...(p.company_code_ids || [])].join(", ")}`;
+    case "board_update": return `${p.state}: ${[...(p.vendor_ids || []), ...(p.link_ids || []), ...(p.group_ids || []), ...(p.company_code_ids || []), ...(p.agreement_ids || [])].join(", ")}${p.focus ? ` (shows ${p.focus})` : ""}`;
     case "kpi_update": return p.decided
       ? `decision payoff: ${p.accepted ? "loss accepted" : `rebate still lost ${p.residual_eur ?? "—"} with ${p.option_label}`}`
       : `rebate at risk ${p.value_at_risk_eur ?? "—"}${p.basis === "what_if" ? " (what-if)" : ""}, first claim deadline day ${p.first_loss_day ?? "—"}`;

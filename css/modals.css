@@ -116,7 +116,7 @@
 .intro-modal .modal-head p { font-size: var(--fs-lg); line-height: 1.4; color: var(--text); max-width: 64ch; }
 .intro-modal .modal-body h3 { margin: 6px 0 14px; font-family: var(--font-figures); font-size: 1.25rem; color: var(--text); }
 
-/* Five steps on one track; each number takes the colour the map uses for that moment of a run. */
+/* Five steps on one track; each number takes the colour the board uses for that moment of a run. */
 .intro-steps {
   list-style: none; margin: 0 0 26px; padding: 0;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px;

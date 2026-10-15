@@ -1,16 +1,19 @@
-// Detail popovers for map entities, built from the same ERP queries the agent uses.
+// Detail popovers for the rebate board, built from the same ERP queries the agent uses and from the
+// engine's figures the board shows.
 
 import { h } from "./dom.js";
-import { eurCompact, eurFull } from "./format.js";
-import { erpGetVendor, erpCompanyCode, erpFamilyTree, relationText, tierText } from "./erp.js";
-import { registerEntry, spendBand } from "./world.js";
+import { eurCompact, eurFull, eurMillions, shortDate } from "./format.js";
+import { erpGetVendor, erpCompanyCode, erpFamilyTree, relationText } from "./erp.js";
+import { registerEntry } from "./world.js";
+import { CHECK_LABEL, agreementSummary } from "./board_data.js";
+import { periodText, viaText } from "./board_race.js";
 
-const STATE_TEXT = { affected: "Affected", at_risk: "At risk", resolved: "Resolved" };
-const BAND_TEXT = { 1: "Over €10M last year", 2: "€2M to €10M last year", 3: "Under €2M last year" };
+const STATE_TEXT = { affected: "Rebate missed", at_risk: "At risk", resolved: "Approved or settled" };
 
 function stateChip(state) {
   if (!state || state === "neutral") return null;
-  const tone = state === "affected" ? "rejected" : state === "at_risk" ? "pending" : "approved";
+  // Red, amber, green as everywhere on the board (the Navigator's popups show a missed state in grey).
+  const tone = state === "affected" ? "danger" : state === "at_risk" ? "risk" : "approved";
   return h("span", { class: "chip", dataset: { tone } }, STATE_TEXT[state]);
 }
 
@@ -22,11 +25,16 @@ function money(value, currency) {
   return currency && currency !== "EUR" ? `${currency} ${eurFull(value).replace("€", "")}` : eurFull(value);
 }
 
-export function vendorPopover(model, id, state) {
+/**
+ * A vendor account: the vendor master, its register link and, on the board, how it relates to the
+ * agreement in view and what this run has checked about it.
+ * ctx: { agreementId, placeText, checks: [kind] }
+ */
+export function vendorPopover(model, id, state, ctx = {}) {
   const v = erpGetVendor(model, id);
   if (v.error) return h("div", {}, v.error);
   const rel = relationText(model, id);
-  const raw = model.vendors.get(id);
+  const r = registerEntry(model, id);
   return h("div", {},
     h("div", { class: "pop-title" }, v.name),
     h("div", { class: "pop-sub" }, `Vendor account ${v.id} in ${v.city}, ${v.country}`),
@@ -36,11 +44,14 @@ export function vendorPopover(model, id, state) {
       v.linked_agreements.length ? h("span", { class: "chip", dataset: { tone: "info" } }, `Linked to ${v.linked_agreements.join(", ")}`) : null
     ),
     dl([
+      ctx.placeText ? ["On the board", ctx.placeText] : null,
       ["Category", v.category],
-      ["Spend", h("div", {}, h("div", {}, `${money(v.spend.last_year, v.invoice_currency)} last agreement year`), h("div", {}, `${money(v.spend.year_before, v.invoice_currency)} the year before`))],
-      ["Size", BAND_TEXT[spendBand(raw)]],
+      ["Spend", h("div", {}, h("div", {}, `${money(v.spend.last_year, v.invoice_currency)} in the closed year`), h("div", {}, `${money(v.spend.year_before, v.invoice_currency)} in the year before`))],
       ["Billed to", `${v.company_code.id} ${v.company_code.name}`],
       ["Register", rel ? `${rel.text}${rel.lei ? `, LEI ${rel.lei}` : ""}` : "no entry: no corporate parent on record"],
+      r ? ["Legal entity", r.legal] : null,
+      r?.evidence ? ["Evidence", r.evidence] : null,
+      ctx.checks ? ["Checked in this run", ctx.checks.length ? ctx.checks.map((k) => CHECK_LABEL[k] || k).join(", ") : "not yet"] : null,
       ["Open payables", eurFull(v.open_payables_eur)],
       ["Tax id, bank", `${v.tax_id}, ${v.bank_account}`]
     ]),
@@ -68,11 +79,12 @@ export function companyCodePopover(model, id, state) {
   );
 }
 
+/** A supplier group (the hub): register entry, agreements and member accounts. */
 export function groupPopover(model, id, state) {
   const t = erpFamilyTree(model, { group_id: id });
   if (t.error) return h("div", {}, t.error);
   const g = t.group;
-  const agreements = (model.agreementsByGroup.get(id) || []).map((a) => `${a.id}: ${tierText(a)}`);
+  const agreements = (model.agreementsByGroup.get(id) || []).map((a) => `${a.id}: ${agreementSummary(model, a.id).tiers_text}`);
   return h("div", {},
     h("div", { class: "pop-title" }, g.name),
     h("div", { class: "pop-sub" }, `Ultimate parent, ${g.headquarters}`),
@@ -80,26 +92,88 @@ export function groupPopover(model, id, state) {
     dl([
       ["LEI", g.lei || "none on record"],
       ["Agreements", agreements.length ? h("div", {}, agreements.map((x) => h("div", {}, x))) : "none"],
-      ["Member accounts", h("div", {}, t.members.map((m) => h("div", {}, `${m.vendor_id} ${m.account_name}${m.group_key ? "" : " (no group key)"}`)))]
+      ["Member accounts", h("div", {}, t.members.map((m) => h("div", {}, `${m.vendor_id} ${m.account_name}${m.group_key ? "" : " (no group key)"}${m.relation === "acquired" && m.since ? `, acquired ${m.since}` : ""}`)))]
     ]),
     h("div", { class: "pop-note" }, "From the subscription register, the only merge authority.")
   );
 }
 
-export function linkPopover(model, vendorId, state) {
-  const r = registerEntry(model, vendorId);
-  if (!r) return h("div", {}, "No register entry.");
-  const v = model.vendors.get(vendorId);
-  const g = model.groups.get(r.group);
+/** An agreement without a supplier group in the register (a single counterparty). */
+export function counterpartyPopover(model, agreementId) {
+  const a = model.agreements.get(agreementId);
+  if (!a) return h("div", {}, "Unknown agreement.");
   return h("div", {},
-    h("div", { class: "pop-title" }, `${v.name} → ${g.name}`),
-    h("div", { class: "pop-sub" }, r.relation === "acquired" ? `Acquired${r.since ? `, in the group since ${r.since}` : ""}` : r.relation === "parent entity" ? "Invoiced by the parent company" : "Subsidiary"),
-    h("div", { class: "pop-tags" }, stateChip(state), v.group_key ? null : h("span", { class: "chip", dataset: { tone: "risk" } }, "No group key in the vendor master")),
+    h("div", { class: "pop-title" }, a.counterparty),
+    h("div", { class: "pop-sub" }, `${a.id}: ${a.title}`),
     dl([
-      ["Legal entity", r.legal],
-      ["LEI", r.lei || "none on record"],
-      ["Evidence", r.evidence]
+      ["Tiers", agreementSummary(model, a.id).tiers_text],
+      ["Linked accounts", a.linked.join(", ")],
+      ["Register", "no corporate group on record: the agreement counts this counterparty only"]
     ]),
-    h("div", { class: "pop-note" }, g.real ? "Register link. Real acquisition dates; the account itself is fictional." : "Register link of a fictional group; the account is fictional too.")
+    h("div", { class: "pop-note" }, "Fictional counterparty, used to check that the live sweep reports agreements with nothing open honestly.")
+  );
+}
+
+/** "Sun, 15 Nov (in 31 days)", or "passed (Sun, 15 Nov)". */
+function deadlineText(row) {
+  if (row.deadline_day < 0) return `passed (${shortDate(row.deadline_date)})`;
+  const when = row.deadline_day === 0 ? "today" : row.deadline_day === 1 ? "in 1 day" : `in ${row.deadline_day} days`;
+  return `${shortDate(row.deadline_date)} (${when})`;
+}
+
+/**
+ * What an approved option does to the year (board.js decisionYears and acceptLoss): approved is a
+ * decision, not cash, so the text says what the option claims, by which way and when the cash comes in.
+ */
+function decisionText(decision) {
+  if (!decision) return null;
+  if (decision.kind === "accepted") return "Do nothing approved: the loss is accepted";
+  const how = viaText(decision.via);
+  if (decision.kind === "full") {
+    return `${decision.label} approved: ${eurFull(decision.recovered_eur)} by ${how}${decision.cash_day !== null && decision.cash_day !== undefined ? `, cash in ${shortDate(decision.cash_day)}` : ""}`;
+  }
+  if (decision.kind === "partial") return `${decision.label} approved: ${eurFull(decision.recovered_eur)} by ${how}; ${eurFull(decision.lost_eur)} still lost`;
+  return `${decision.label} approved: it claims nothing for this year, so the rebate is still lost`;
+}
+
+/**
+ * One year of the threshold race: the engine's position (or what the report counted), the decision
+ * on it if any, and the accounts.
+ */
+export function yearPopover(model, view, row, decision = null) {
+  const a = view.agreement;
+  const o = row.out;
+  const decided = decisionText(decision);
+  const rows = o.mode === "report"
+    ? [
+      ["Report counted", `${eurFull(row.total_eur)} on the linked accounts${a.report_currencies ? ` (${a.report_currencies.join(", ")} invoices only)` : ""}`],
+      ["Listed", o.listed ? "yes" : String(o.listed_text).replace(/^no \(/, "no: ").replace(/\)$/, "")],
+      ["Tier shown", o.tier_shown_pct ? `${o.tier_shown_pct} %` : "none"],
+      ["Rebate shown", eurFull(o.rebate_shown_eur)],
+      ["Claim filed", o.claim_filed],
+      ["Claim deadline", deadlineText(row)]
+    ]
+    : [
+      ["Eligible spend", eurFull(row.total_eur)],
+      ["Report counted", eurFull(row.counted_eur)],
+      ["Tier reached", row.tier_pct ? `${row.tier_pct} %` : "none"],
+      ["Rebate owed", eurFull(o.owed_eur)],
+      a.statement ? ["Credited by the supplier", eurFull(o.credited_eur)] : null,
+      ["Claimed by the report", eurFull(o.claimed_eur)],
+      ["Open", eurFull(o.open_eur)],
+      ["Claim deadline", deadlineText(row)],
+      decided ? ["Decision", decided] : null
+    ];
+  const kindText = (s) => (s.kind === "counted" ? "counted" : s.kind === "assumed" ? "what-if" : "missed");
+  return h("div", {},
+    h("div", { class: "pop-title" }, `${row.label}${row.projected ? " (projected)" : ""}: ${a.short}`),
+    h("div", { class: "pop-sub" }, `${a.id}, ${periodText(row.period)}. ${a.tiers_text}${a.report_min_eur ? `; the report lists ${a.short} only from ${eurMillions(a.report_min_eur)}` : ""}.`),
+    dl(rows),
+    h("table", { class: "pop-table" },
+      h("thead", {}, h("tr", {}, h("th", {}, "Account"), h("th", {}, "Report"), h("th", { class: "r" }, "Spend"))),
+      h("tbody", {}, row.segments.map((s) => h("tr", {}, h("td", {}, `${s.vendor_id} ${s.name}`), h("td", {}, s.reason ? `${kindText(s)}: ${s.reason}` : kindText(s)), h("td", { class: "r" }, eurCompact(s.eur)))))),
+    h("div", { class: "pop-note" }, o.mode === "report"
+      ? "GlobalCorp's year-end rebate report as it ran. Figures from the ERP and the deterministic rebate engine."
+      : `${view.basis === "what_if" ? "A what-if: it counts an account the register does not list. " : view.basis === "partial" ? "A partial count: it leaves out a linked account. " : ""}Figures from the deterministic rebate engine, at the contract's exchange rates.`)
   );
 }

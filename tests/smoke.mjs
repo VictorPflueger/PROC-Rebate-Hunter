@@ -3,22 +3,23 @@
 //   live         key check (401, then accepted), a model that keeps ending its turn early
 //   diag         Diagnostics dialog, custom what-if blocks Simulation
 //   intro        first visit opens the intro window; "How it works" reopens it; Start agent leads to the mode choice
-//   cdn-down     both CDNs unreachable: Leaflet loads from vendor/
-//   no-leaflet   no Leaflet anywhere: map notice, the rest still works
+//   board        the rebate board: the scenario's group view, popovers by keyboard (Escape returns the
+//                focus), the portfolio of every agreement opens a group view; nothing loads from outside
+//   motion       reduced motion: a Simulation run shows the board's final figures at once, no motion
 //   file         opened from file://: the page explains how to start a server
 //   missing-data a data file is missing: the boot screen names it
 // Usage: node tests/smoke.mjs [case…]
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, fulfilLeaflet, NETWORK_NOISE, MOCK_KEY, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
+import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, NETWORK_NOISE, MOCK_KEY, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
 
 const OUT = await outDir("smoke");
 const { base: BASE, blockLocal, close } = await serveStatic(APP_ROOT, 8765);
 const browser = await launchBrowser();
 const results = [];
 
-async function newPage({ cdn = "ok", anthropic = null, intro = false, viewport = { width: 1920, height: 1080 } } = {}) {
-  const context = await browser.newContext({ viewport, acceptDownloads: true });
+async function newPage({ anthropic = null, intro = false, viewport = { width: 1920, height: 1080 }, reducedMotion = "no-preference" } = {}) {
+  const context = await browser.newContext({ viewport, acceptDownloads: true, reducedMotion });
   if (!intro) await context.addInitScript(SKIP_INTRO);
   await context.addInitScript(() => {
     window.__csp = [];
@@ -27,7 +28,6 @@ async function newPage({ cdn = "ok", anthropic = null, intro = false, viewport =
   const external = [];
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const u = new URL(route.request().url());
-    if (cdn === "ok" && await fulfilLeaflet(route)) return;
     if (u.host === "api.anthropic.com" && anthropic) return anthropic(route);
     external.push(`${route.request().method()} ${u.host}${u.pathname}`);
     return route.abort("blockedbyclient");
@@ -55,7 +55,7 @@ const boot = async (page) => { await page.goto(BASE); await page.waitForSelector
 
 // ---- sim: full Cisco simulation ---------------------------------------------------------------
 if (wanted("sim")) {
-  const t = await newPage({ cdn: "ok" });
+  const t = await newPage();
   const { page } = t;
   const checks = {};
   try {
@@ -82,12 +82,21 @@ if (wanted("sim")) {
       const body = document.querySelector(".drawer-body").getBoundingClientRect();
       return [...document.querySelectorAll(".option-actions .btn")].every((b) => { const r = b.getBoundingClientRect(); return r.top >= body.top && r.bottom <= body.bottom; });
     });
-    checks.legendInsideMap = await page.evaluate(() => {
-      const m = document.querySelector(".map-panel").getBoundingClientRect();
-      const l = document.querySelector(".legend").getBoundingClientRect();
-      return l.top >= m.top - 1 && l.bottom <= m.bottom + 1;
+    checks.legendInsideBoard = await page.evaluate(() => {
+      const m = document.querySelector("#board").getBoundingClientRect();
+      const l = document.querySelector("#board .legend").getBoundingClientRect();
+      return getComputedStyle(document.querySelector("#board .legend")).display === "none" || (l.top >= m.top - 1 && l.bottom <= m.bottom + 1);
     });
     await page.click('.option-card[data-recommended="true"] .btn-approve');
+    // The board follows the decision: option A links Meraki, Acacia and Splunk, which join the ring
+    // (or, while the open drawer leaves the board short, slide into the band's ring), and the closed
+    // year shows the claim approved (not "recovered": nothing is booked yet).
+    const LINKED = '#board .constellation:not([hidden]) .acct[data-place="ring"], #board .acct-band:not([hidden]) .band-ring .band-acct';
+    await page.waitForFunction((sel) => document.querySelectorAll(sel).length === 5, LINKED, { timeout: 15000 });
+    checks.boardDecision = await page.evaluate((sel) => ({
+      linked: document.querySelectorAll(sel).length,
+      ay: document.querySelector('#board .race-row[data-year="AY"] .race-out')?.innerText.replace(/\s+/g, " ")
+    }), LINKED);
     await page.waitForSelector('button:has-text("Approve all")', { state: "visible", timeout: 120000 });
     await page.waitForTimeout(600);
     await shot(page, "04-outbox.png");
@@ -133,7 +142,8 @@ if (wanted("sim")) {
     [/You are interacting with an AI system/.test(checks.disclosure || ""), "AI disclosure must be visible"],
     [checks.badgeSim === "SIMULATION" && checks.watermarkVisible, "SIMULATION badge and watermark"],
     [checks.optionCards?.length === 4 && checks.optionCards.some((c) => c.startsWith("baseline:")), "three options plus do nothing"],
-    [checks.approveButtonsVisibleWithoutScroll && checks.legendInsideMap, "options and legend fit at 1080p"],
+    [checks.approveButtonsVisibleWithoutScroll && checks.legendInsideBoard, "options and legend fit at 1080p"],
+    [checks.boardDecision?.linked === 5 && /€1,048,000 option A approved credit note · cash in /.test(checks.boardDecision?.ay || ""), `the board shows the decision (${JSON.stringify(checks.boardDecision)})`],
     [checks.drafts > 0, "approval must produce drafts"],
     [checks.statusEnd === "Done" && checks.startLabel === "New run", "run ends Done"],
     [checks.lastEntryInView && checks.replayFacts, "console ends on the Replay facts line"],
@@ -147,7 +157,6 @@ if (wanted("live")) {
   let models = 0;
   let messageCalls = 0;
   const t = await newPage({
-    cdn: "ok",
     anthropic: async (route) => {
       const req = route.request();
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST" } });
@@ -211,15 +220,15 @@ if (wanted("live")) {
 
 // ---- diag: Diagnostics and custom what-if --------------------------------------------------------
 if (wanted("diag")) {
-  const t = await newPage({ cdn: "ok" });
+  const t = await newPage();
   const { page } = t;
   const checks = {};
   try {
     await boot(page);
     await page.click("#btn-diagnostics");
-    await page.waitForFunction(() => document.querySelectorAll('.diag-status[data-s="pass"]').length >= 3, null, { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll('.diag-status[data-s="pass"]').length >= 2, null, { timeout: 10000 });
     await shot(page, "12-diagnostics.png");
-    checks.localRows = await page.$$eval(".diag-table tbody tr", (rows) => rows.map((r) => `${r.querySelector("strong")?.textContent}:${r.querySelector(".diag-status")?.dataset.s}`).filter((x) => /World|privacy|Leaflet/.test(x)));
+    checks.localRows = await page.$$eval(".diag-table tbody tr", (rows) => rows.map((r) => `${r.querySelector("strong")?.textContent}:${r.querySelector(".diag-status")?.dataset.s}`).filter((x) => /World|privacy/.test(x)));
     checks.footer = await page.$eval(".modal-foot .left", (e) => e.textContent.trim());
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
@@ -239,7 +248,7 @@ if (wanted("diag")) {
     checks.FAILED = String(err.message).split("\n")[0];
   }
   await finish("diag: Diagnostics and custom what-if", t, checks, [
-    [(checks.localRows || []).length === 3 && checks.localRows.every((x) => x.endsWith(":pass")), "world, Leaflet and privacy rows pass"],
+    [(checks.localRows || []).length === 2 && checks.localRows.every((x) => x.endsWith(":pass")), "world and privacy rows pass"],
     [/^Rebate Hunter \d+\.\d+\.\d+/.test(checks.footer || ""), "Diagnostics footer shows the version"],
     [/Custom/.test(checks.scenarioLabel || ""), "custom what-if selected"],
     [checks.simBlocked === "true", "custom what-ifs cannot run as Simulation"]
@@ -248,7 +257,7 @@ if (wanted("diag")) {
 
 // ---- intro: first visit opens the intro window; "How it works" reopens it ----------------------------
 if (wanted("intro")) {
-  const t = await newPage({ cdn: "ok", intro: true });
+  const t = await newPage({ intro: true });
   const { page } = t;
   const checks = {};
   try {
@@ -305,53 +314,141 @@ if (wanted("intro")) {
   ]);
 }
 
-// ---- cdn-down: both CDNs unreachable → local copy ---------------------------------------------------
-if (wanted("cdn-down")) {
-  const t = await newPage({ cdn: "down" });
+// ---- board: the rebate board by mouse and keyboard ------------------------------------------------------
+if (wanted("board")) {
+  const t = await newPage();
+  const { page, external } = t;
+  const checks = {};
+  try {
+    await boot(page);
+    await page.click("#dd-scenario");
+    await page.click('.menu-item[data-id="SC-MSFT-PY"]');
+    await page.waitForTimeout(800);
+    checks.caption = (await page.textContent("#board .board-caption strong")).trim();
+    checks.raceYears = await page.$$eval("#board .race-row", (els) => els.map((e) => e.dataset.year).join(","));
+    checks.reportChip = (await page.textContent("#board .race-head .chip")).trim();
+    checks.accounts = await page.$$eval("#board .acct", (els) => els.map((e) => `${e.dataset.id}:${e.dataset.place}`).sort().join(","));
+    await shot(page, "14-board-group.png");
+    // Keyboard: the hub opens the register entry; Escape closes it and gives the focus back.
+    await page.focus("#board .hub-btn");
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("#board .board-pop:not([hidden])", { timeout: 3000 });
+    checks.popTitle = (await page.textContent("#board .board-pop .pop-title")).trim();
+    checks.popFocused = await page.evaluate(() => document.querySelector("#board .board-pop").contains(document.activeElement));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    checks.popClosed = await page.$eval("#board .board-pop", (e) => e.hidden);
+    checks.focusBack = await page.evaluate(() => document.activeElement?.classList.contains("hub-btn"));
+    // An account outside the ring, then a year of the race: its details open under the race card,
+    // with a tip, and never cover the bar they explain.
+    await page.click('#board .acct[data-id="20002"] .acct-hit');
+    await page.waitForSelector("#board .board-pop:not([hidden])");
+    checks.accountPop = (await page.textContent("#board .board-pop")).replace(/\s+/g, " ");
+    await page.click('#board .race-row[data-year="PY"]');
+    await page.waitForTimeout(200);
+    checks.yearPop = (await page.textContent("#board .board-pop .pop-title")).trim();
+    checks.yearPopPlace = await page.evaluate(() => {
+      const pop = document.querySelector("#board .board-pop").getBoundingClientRect();
+      const covers = [...document.querySelectorAll("#board .race-row:not([hidden]) .race-track")].some((t) => {
+        const track = t.getBoundingClientRect();
+        return !(pop.right <= track.left || pop.left >= track.right || pop.bottom <= track.top || pop.top >= track.bottom);
+      });
+      return `${document.querySelector("#board .board-pop").dataset.tip || "none"}:${covers ? "covers" : "clear"}`;
+    });
+    await page.keyboard.press("Escape");
+    // Keyboard focus survives a redraw: on a company code, the board redraws as the panel resizes;
+    // its popover still gives the focus back.
+    await page.focus('#board .code-btn[data-code="CC-1000"]');
+    await page.setViewportSize({ width: 1920, height: 1060 });
+    await page.waitForTimeout(400);
+    checks.codeFocusKept = await page.evaluate(() => document.activeElement?.dataset?.code === "CC-1000");
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("#board .board-pop:not([hidden])");
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.waitForTimeout(400);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    checks.codeFocusBack = await page.evaluate(() => document.activeElement?.dataset?.code === "CC-1000");
+    // A visible focus ring on the board's own buttons (their shadows must not hide it).
+    await page.keyboard.press("Shift");
+    checks.rings = await page.evaluate(() => ["#board .board-tools .btn", "#board .hub-btn", '#board .code-btn[data-code="CC-1000"]'].map((sel) => {
+      const el = document.querySelector(sel);
+      el.focus();
+      return `${sel}:${/ 0px 0px 0px 4px/.test(getComputedStyle(el).boxShadow)}`;
+    }));
+    // The portfolio: every agreement, the next claim deadline first; a row opens its group, and the
+    // keyboard focus moves into the group.
+    await page.click('#board .board-tools button:has-text("Portfolio view")');
+    await page.waitForSelector('#board .board-view[data-view="portfolio"]:not([hidden])');
+    checks.portfolio = await page.$$eval("#board .pf-row", (els) => els.map((e) => e.dataset.id));
+    checks.deadlines = await page.$$eval("#board .pf-deadline strong", (els) => els.map((e) => parseInt(e.textContent, 10)));
+    checks.msftYear = (await page.textContent('#board .pf-row[data-id="RA-MSFT"] .pf-year')).trim();
+    await shot(page, "15-board-portfolio.png");
+    await page.focus('#board .pf-row[data-id="RA-CISCO"]');
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(500);
+    checks.afterRow = `${await page.$eval("#board", (b) => b.dataset.view)}:${(await page.textContent("#board .board-caption strong")).trim()}`;
+    checks.focusAfterRow = await page.evaluate(() => document.activeElement?.classList.contains("hub-btn"));
+    // Every board control is at least 40 px; the board's own entities at least 44 px.
+    checks.small = await page.evaluate(() => [...document.querySelectorAll("#board button")].filter((b) => b.offsetParent).filter((b) => { const r = b.getBoundingClientRect(); return r.width < 40 || r.height < 40; }).map((b) => b.getAttribute("aria-label") || b.textContent));
+    checks.small44 = await page.evaluate(() => [...document.querySelectorAll("#board .acct-hit, #board .hub-btn, #board .code-btn, #board .race-row, #board .pf-row, #board .band-acct, #board .band-hub")].filter((b) => b.offsetParent).filter((b) => { const r = b.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map((b) => b.getAttribute("aria-label") || b.textContent));
+    checks.external = external.slice();
+  } catch (err) {
+    checks.FAILED = String(err.message).split("\n")[0];
+    await shot(page, "board-fail.png");
+  }
+  const sorted = (xs) => xs.every((x, i) => i === 0 || x >= xs[i - 1]);
+  await finish("board: group view, popovers, portfolio", t, checks, [
+    [checks.caption === "Microsoft Corporation", "the board opens on the chosen scenario's group"],
+    [checks.raceYears === "PY,AY,CY" && checks.reportChip === "Year-end report", `before a run the race shows the report's view of the open years and the current year (${checks.raceYears})`],
+    [checks.accounts === "20001:ring,20002:outer", `linked account on the ring, the acquisition outside (${checks.accounts})`],
+    [checks.popTitle === "Microsoft Corporation" && checks.popFocused && checks.popClosed && checks.focusBack, "the hub's details open by keyboard, Escape closes them and returns the focus"],
+    [/Activision Blizzard/.test(checks.accountPop || "") && /not linked to RA-MSFT/i.test(checks.accountPop || ""), "an outside account says why the report misses it"],
+    [/^Look-back year: Microsoft/.test(checks.yearPop || "") && checks.yearPopPlace === "up:clear", `a race row opens its year under the race card, its tip up, every bar in view (${checks.yearPopPlace})`],
+    [checks.codeFocusKept && checks.codeFocusBack, "focus survives a redraw, and the popover gives it back after one"],
+    [(checks.rings || []).every((r) => r.endsWith(":true")), `the view buttons, the hub and the codes show the focus ring (${checks.rings})`],
+    [checks.portfolio?.length === 8 && sorted(checks.deadlines || []), `the portfolio lists all eight agreements, next deadline first (${checks.deadlines})`],
+    [checks.msftYear === "look-back year", `Microsoft's row is its look-back year, the one due next (${checks.msftYear})`],
+    [checks.afterRow === "group:Cisco Systems, Inc." && checks.focusAfterRow, `a portfolio row opens its group and the focus follows (${checks.afterRow}, ${checks.focusAfterRow})`],
+    [(checks.small || []).length === 0, `every board control is at least 40 px (${checks.small})`],
+    [(checks.small44 || []).length === 0, `every board entity is at least 44 px (${checks.small44})`],
+    [(checks.external || []).length === 0, `nothing loads from outside (${checks.external})`]
+  ]);
+}
+
+// ---- motion: reduced motion shows the final state at once ---------------------------------------------------
+if (wanted("motion")) {
+  const t = await newPage({ reducedMotion: "reduce" });
   const { page } = t;
   const checks = {};
   try {
     await boot(page);
-    await page.waitForTimeout(800);
-    checks.leafletPresent = await page.evaluate(() => Boolean(window.L));
-    checks.mapReady = await page.isVisible(".leaflet-container");
-    await shot(page, "14-cdn-down.png");
-  } catch (err) { checks.FAILED = String(err.message).split("\n")[0]; }
-  await finish("cdn-down: Leaflet from vendor/", t, checks, [[checks.leafletPresent && checks.mapReady, "map must load from the local copy"]]);
-}
-
-// ---- no-leaflet: no Leaflet at all → map notice, app still works ----------------------------------------
-if (wanted("no-leaflet")) {
-  blockLocal.add("/vendor/");
-  const t = await newPage({ cdn: "down" });
-  const { page } = t;
-  const checks = {};
-  try {
-    await page.goto(BASE);
-    await page.waitForSelector('html[data-boot="ready"]', { timeout: 40000 });
-    checks.fallbackShown = await page.isVisible(".map-fallback");
     await page.click('button[aria-label="Replay speed ×4"]');
     await page.click("#btn-start");
     await page.waitForSelector(".mode-card");
     await page.click('.mode-card[data-mode="simulation"] .mode-cta button');
-    await page.waitForTimeout(5000);
-    checks.consoleEntries = await page.$$eval("#console .entry", (els) => els.length);
-    await shot(page, "15-no-leaflet.png");
+    await page.waitForSelector(".option-card", { state: "visible", timeout: 180000 });
+    await page.waitForTimeout(300);
+    // The figure on the right is final straight away (no count-up), the tiers do not pulse, and no
+    // board element animates.
+    checks.ay = (await page.textContent('#board .race-row[data-year="AY"] .race-out strong')).trim();
+    checks.animations = await page.evaluate(() => document.getAnimations().filter((a) => document.querySelector("#board")?.contains(a.effect?.target)).map((a) => `${a.effect?.target?.className}:${a.animationName || a.constructor.name}`));
+    checks.flash = await page.$$eval("#board .flash, #board .cross", (els) => els.length);
+    await shot(page, "16-reduced-motion.png");
     await page.click("#btn-abort");
-    await page.waitForTimeout(500);
-    checks.statusAfterAbort = (await page.textContent(".status-pill .text")).trim();
-  } catch (err) { checks.FAILED = String(err.message).split("\n")[0]; }
-  blockLocal.delete("/vendor/");
-  await finish("no-leaflet: map notice, app still runs", t, checks, [
-    [checks.fallbackShown, "map notice shown"],
-    [checks.consoleEntries > 3, "simulation runs without a map"],
-    [checks.statusAfterAbort === "Aborted", "Abort works"]
+  } catch (err) {
+    checks.FAILED = String(err.message).split("\n")[0];
+    await shot(page, "motion-fail.png");
+  }
+  await finish("motion: reduced motion", t, checks, [
+    [checks.ay === "€1,048,000", `the race shows the final figure (${checks.ay})`],
+    [(checks.animations || []).length === 0 && checks.flash === 0, `no animation on the board (${JSON.stringify(checks.animations)}, ${checks.flash} flashes)`]
   ]);
 }
 
 // ---- file: opened from disk ---------------------------------------------------------------------------
 if (wanted("file")) {
-  const t = await newPage({ cdn: "down" });
+  const t = await newPage();
   const { page } = t;
   const checks = {};
   try {
@@ -367,7 +464,7 @@ if (wanted("file")) {
 // ---- missing-data: a data file did not deploy ------------------------------------------------------------
 if (wanted("missing-data")) {
   blockLocal.add("/data/sim_runs.js");
-  const t = await newPage({ cdn: "ok" });
+  const t = await newPage();
   const { page } = t;
   const checks = {};
   try {

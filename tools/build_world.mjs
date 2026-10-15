@@ -4,9 +4,9 @@
 //
 // What it combines:
 //   - the 150 vendor accounts and 1,203 purchase orders of the Streamlit version, regenerated bit for
-//     bit from Python's random module with seed 1337 (tools/legacy_seed.mjs), then placed on the map
-//     (a noise account takes its city's country), dated inside the agreement year, and given a
-//     checksum-invalid tax id where the Streamlit one happened to be valid;
+//     bit from Python's random module with seed 1337 (tools/legacy_seed.mjs), each noise account given
+//     its city's country, dated inside the agreement year, and given a checksum-invalid tax id where
+//     the Streamlit one happened to be valid;
 //   - 11 accounts added for scenarios 4 to 6 (Broadcom, Schneider Electric and Salesforce groups) and
 //     two clean agreements for the live sweep;
 //   - GlobalCorp SE's company codes, the corporate groups, the subscription register (family trees)
@@ -23,18 +23,15 @@ import { legacyData, PyRandom, round2 } from "./legacy_seed.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // ---- places -------------------------------------------------------------------------------------
-// City → [lat, lon, ISO country]. Filler accounts in the Streamlit data drew their country at random,
-// independently of the city ("Paris, AT"); the map needs one place, so the city's country wins.
+// City → ISO country. Filler accounts in the Streamlit data drew their country at random,
+// independently of the city ("Paris, AT"); an account has one country, so the city's country wins
+// (it decides the company code that is billed).
 const CITY = {
-  Frankfurt: [50.11, 8.68, "DE"], Stuttgart: [48.78, 9.18, "DE"], Hamburg: [53.55, 9.99, "DE"],
-  Berlin: [52.52, 13.40, "DE"], "Düsseldorf": [51.23, 6.78, "DE"], Paris: [48.86, 2.35, "FR"],
-  Zurich: [47.37, 8.54, "CH"], Vienna: [48.21, 16.37, "AT"], Milan: [45.46, 9.19, "IT"],
-  Madrid: [40.42, -3.70, "ES"], Amsterdam: [52.37, 4.90, "NL"],
-  Bonn: [50.73, 7.10, "DE"], "San Jose": [37.34, -121.89, "US"], London: [51.51, -0.13, "GB"],
-  Maynard: [42.43, -71.45, "US"], Munich: [48.14, 11.58, "DE"], Ismaning: [48.23, 11.68, "DE"],
-  Manchester: [53.48, -2.24, "GB"], Bracknell: [51.41, -0.75, "GB"], Ballincollig: [51.89, -8.59, "IE"],
-  "Palo Alto": [37.44, -122.14, "US"], Ratingen: [51.30, 6.85, "DE"], Telford: [52.68, -2.45, "GB"],
-  Cambridge: [52.21, 0.12, "GB"], Dublin: [53.35, -6.26, "IE"]
+  Frankfurt: "DE", Stuttgart: "DE", Hamburg: "DE", Berlin: "DE", "Düsseldorf": "DE", Paris: "FR",
+  Zurich: "CH", Vienna: "AT", Milan: "IT", Madrid: "ES", Amsterdam: "NL",
+  Bonn: "DE", "San Jose": "US", London: "GB", Maynard: "US", Munich: "DE", Ismaning: "DE",
+  Manchester: "GB", Bracknell: "GB", Ballincollig: "IE", "Palo Alto": "US", Ratingen: "DE", Telford: "GB",
+  Cambridge: "GB", Dublin: "IE"
 };
 
 const STEM_CATEGORY = {
@@ -43,23 +40,23 @@ const STEM_CATEGORY = {
   Chemicals: "Chemicals", Security: "Security services", Fleet: "Fleet services"
 };
 
-// ---- GlobalCorp SE: company codes (the buying entities; drawn like the Navigator's sites) ---------
+// ---- GlobalCorp SE: company codes (the buying entities) ------------------------------------------------
 const COMPANY_CODES = [
-  { id: "CC-1000", code: "1000", name: "GlobalCorp SE", short: "Frankfurt", city: "Frankfurt am Main", country: "DE", lat: 50.11, lon: 8.68, currency: "EUR", role: "Group headquarters and central procurement; global IT and software contracts" },
-  { id: "CC-2000", code: "2000", name: "GlobalCorp UK Ltd", short: "Birmingham", city: "Birmingham", country: "GB", lat: 52.49, lon: -1.89, currency: "GBP", role: "UK operations; invoices in pounds sterling and euros" },
-  { id: "CC-3000", code: "3000", name: "GlobalCorp France SAS", short: "Lyon", city: "Lyon", country: "FR", lat: 45.76, lon: 4.84, currency: "EUR", role: "French operations" }
+  { id: "CC-1000", code: "1000", name: "GlobalCorp SE", short: "Frankfurt", city: "Frankfurt am Main", country: "DE", currency: "EUR", role: "Group headquarters and central procurement; global IT and software contracts" },
+  { id: "CC-2000", code: "2000", name: "GlobalCorp UK Ltd", short: "Birmingham", city: "Birmingham", country: "GB", currency: "GBP", role: "UK operations; invoices in pounds sterling and euros" },
+  { id: "CC-3000", code: "3000", name: "GlobalCorp France SAS", short: "Lyon", city: "Lyon", country: "FR", currency: "EUR", role: "French operations" }
 ];
 
 // ---- corporate groups (ultimate parents). LEIs as published by GLEIF; the city is the operational ---
 // headquarters (GLEIF lists the legal address, which for US groups is a registered agent's city).
 const GROUPS = [
-  { id: "G-CISCO", name: "Cisco Systems, Inc.", short: "Cisco", lei: "549300LKFJ962MZ46593", city: "San Jose", country: "US", lat: 37.41, lon: -121.95, real: true },
-  { id: "G-MSFT", name: "Microsoft Corporation", short: "Microsoft", lei: "INR2EJN1ERAN0W5ZP974", city: "Redmond", country: "US", lat: 47.64, lon: -122.13, real: true },
-  { id: "G-AVGO", name: "Broadcom Inc.", short: "Broadcom", lei: "549300WV6GIDOZJTV909", city: "Palo Alto", country: "US", lat: 37.40, lon: -122.14, real: true },
-  { id: "G-SCHN", name: "Schneider Electric SE", short: "Schneider Electric", lei: "969500A1YF1XUYYXS284", city: "Rueil-Malmaison", country: "FR", lat: 48.88, lon: 2.18, real: true },
-  { id: "G-CRM", name: "Salesforce, Inc.", short: "Salesforce", lei: "RCGZFPDMRW58VJ54VR07", city: "San Francisco", country: "US", lat: 37.79, lon: -122.40, real: true },
-  { id: "G-APEX-DE", name: "Apex Robotics Holding AG", short: "Apex Holding (DE)", lei: null, city: "Esslingen", country: "DE", lat: 48.74, lon: 9.31, real: false },
-  { id: "G-APEX-GB", name: "Apex Industrial Group plc", short: "Apex Industrial (GB)", lei: null, city: "Leeds", country: "GB", lat: 53.80, lon: -1.55, real: false }
+  { id: "G-CISCO", name: "Cisco Systems, Inc.", short: "Cisco", lei: "549300LKFJ962MZ46593", city: "San Jose", country: "US", real: true },
+  { id: "G-MSFT", name: "Microsoft Corporation", short: "Microsoft", lei: "INR2EJN1ERAN0W5ZP974", city: "Redmond", country: "US", real: true },
+  { id: "G-AVGO", name: "Broadcom Inc.", short: "Broadcom", lei: "549300WV6GIDOZJTV909", city: "Palo Alto", country: "US", real: true },
+  { id: "G-SCHN", name: "Schneider Electric SE", short: "Schneider Electric", lei: "969500A1YF1XUYYXS284", city: "Rueil-Malmaison", country: "FR", real: true },
+  { id: "G-CRM", name: "Salesforce, Inc.", short: "Salesforce", lei: "RCGZFPDMRW58VJ54VR07", city: "San Francisco", country: "US", real: true },
+  { id: "G-APEX-DE", name: "Apex Robotics Holding AG", short: "Apex Holding (DE)", lei: null, city: "Esslingen", country: "DE", real: false },
+  { id: "G-APEX-GB", name: "Apex Industrial Group plc", short: "Apex Industrial (GB)", lei: null, city: "Leeds", country: "GB", real: false }
 ];
 
 // ---- accounts added for scenarios 4 to 6 (AY = last agreement year, PY = the year before) --------
@@ -210,24 +207,6 @@ function hash(text) {
 }
 const unit = (text) => hash(text) / 4294967296;
 
-/** A stable offset around the city centre, so accounts in one city do not sit on one pixel. */
-function jitter(id, lat, lon, maxDeg = 0.2) {
-  const a = unit(`${id}:a`) * Math.PI * 2;
-  const r = 0.035 + unit(`${id}:r`) * maxDeg;
-  return [round(lat + r * Math.sin(a), 3), round(lon + (r * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), 3)];
-}
-function round(x, d) { const f = 10 ** d; return Math.round(x * f) / f; }
-
-/**
- * Places the k-th of n accounts of one city on a sunflower (golden-angle) disc around the centre,
- * so a city's dozen accounts read as a cluster of separate markers instead of one blob.
- */
-function sunflower(k, n, lat, lon, radiusDeg, turn) {
-  const r = radiusDeg * Math.sqrt((k + 0.5) / n);
-  const a = turn + k * 2.399963; // golden angle in radians
-  return [round(lat + r * Math.sin(a), 3), round(lon + (r * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), 3)];
-}
-
 function companyCodeFor(country, currency) {
   if (currency === "GBP") return "CC-2000";
   if (country === "FR") return "CC-3000";
@@ -261,27 +240,14 @@ const agreementOf = new Map();
 for (const a of AGREEMENTS) for (const id of [...a.linked, ...REGISTER.filter((r) => r.group === a.group).map((r) => r.vendor)]) if (!agreementOf.has(id)) agreementOf.set(id, a);
 
 const vendors = [];
-// The Streamlit app's noise accounts share a dozen cities; each city's accounts form one cluster.
-const noiseByCity = new Map();
-for (const v of legacy.vendors) {
-  if (v.LIFNR in CORE_DETAILS) continue;
-  if (!noiseByCity.has(v.ORT01)) noiseByCity.set(v.ORT01, []);
-  noiseByCity.get(v.ORT01).push(v.LIFNR);
-}
-for (const list of noiseByCity.values()) list.sort();
 for (const v of legacy.vendors) {
   const isCore = v.LIFNR in CORE_DETAILS;
-  const [clat, clon, cityCountry] = CITY[v.ORT01];
-  const country = isCore ? v.LAND1 : cityCountry;
-  const peers = noiseByCity.get(v.ORT01) || [];
-  const [lat, lon] = isCore
-    ? jitter(v.LIFNR, clat, clon, 0.06)
-    : sunflower(peers.indexOf(v.LIFNR), peers.length, clat, clon, 0.62, unit(`${v.ORT01}:turn`) * Math.PI * 2);
+  const country = isCore ? v.LAND1 : CITY[v.ORT01];
   const stem = isCore ? null : Object.keys(STEM_CATEGORY).find((s) => v.NAME1.includes(` ${s} `));
   const ay = v.SPEND_YTD;
   const pyFactor = 0.84 + unit(`${v.LIFNR}:py`) * 0.26;
   vendors.push({
-    id: v.LIFNR, name: v.NAME1, city: v.ORT01, country, lat, lon, tax_id: TAX_ID_FIX[v.LIFNR] || v.STCD1, currency: "EUR",
+    id: v.LIFNR, name: v.NAME1, city: v.ORT01, country, tax_id: TAX_ID_FIX[v.LIFNR] || v.STCD1, currency: "EUR",
     company_code: companyCodeFor(country, "EUR"),
     category: isCore ? CORE_DETAILS[v.LIFNR].cat : STEM_CATEGORY[stem],
     spend: { AY: ay, PY: isCore ? CORE_DETAILS[v.LIFNR].py : round2(ay * pyFactor) },
@@ -292,11 +258,10 @@ for (const v of legacy.vendors) {
   });
 }
 for (const x of EXTRA_VENDORS) {
-  const [clat, clon, country] = CITY[x.city];
-  const [lat, lon] = jitter(x.id, clat, clon, 0.06);
+  const country = CITY[x.city];
   const currency = x.currency || "EUR";
   vendors.push({
-    id: x.id, name: x.name, city: x.city, country, lat, lon, tax_id: x.tax, currency,
+    id: x.id, name: x.name, city: x.city, country, tax_id: x.tax, currency,
     company_code: x.cc || companyCodeFor(country, currency), category: x.cat,
     spend: { AY: x.ay, PY: x.py }, open_payables_eur: OPEN_PAYABLES[x.id],
     bank: bankOf(x.id, country), group_key: null, origin: "scenario account (added)"
@@ -372,7 +337,7 @@ const world = {
   meta: {
     company: "GlobalCorp SE",
     company_note: "GlobalCorp SE, its company codes, vendor accounts, spend figures and rebate agreements are fictional. The corporate groups (Cisco, Microsoft, Broadcom, Schneider Electric, Salesforce), their LEIs and their acquisitions are real, public facts. Apex Robotics and the noise vendors are fictional.",
-    world_version: "1.1.0",
+    world_version: "1.2.0",
     currency: "EUR",
     legacy: "The first 150 vendor accounts and their 1,203 purchase orders are those of the Streamlit version (seed 1337), regenerated bit for bit by tools/legacy_seed.mjs.",
     default_ay_end_day: DEFAULT_AY_END,

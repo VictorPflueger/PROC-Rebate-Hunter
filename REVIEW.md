@@ -2,11 +2,11 @@
 
 This document has six parts:
 
-1. **The Navigator: design and feature review.** An evidence-based review of the sister prototype (Navigator 1.1.0), written before the overhaul as its basis. Findings W24 and W25 were added while building the Rebate Hunter, W26 to W32 after its independent review.
+1. **The Navigator: design and feature review.** An evidence-based review of the sister prototype (Navigator 1.1.0), written before the overhaul as its basis. Findings W24 and W25 were added while building the Rebate Hunter, W26 to W32 after its independent review, and W33 after the review of its rebate board.
 2. **The Rebate Hunter before the overhaul** (Streamlit version 6.2) and its gaps against the Navigator.
-3. **What the overhaul did.**
+3. **What the overhaul did**, and the rebate board that replaced the map in version 7.1.0.
 4. **Parity checklist:** every Navigator feature and its Rebate Hunter counterpart, with a status.
-5. **Back-port recommendations** for the Navigator (W1–W32 and what the Rebate Hunter did about each).
+5. **Back-port recommendations** for the Navigator (W1–W33 and what the Rebate Hunter did about each).
 6. **Decisions and open points.**
 
 Line references in Part 1 point into the Navigator repository (`VictorPflueger/supply-chain-navigator`, after PR #3, commit `9353e17`, still its latest on 15 October 2026); everything else refers to this repository.
@@ -142,7 +142,7 @@ Line references in Part 1 point into the Navigator repository (`VictorPflueger/s
 - **Weak: some guarantees are stronger in the docs than in the code.** "Two independent sources" is a count of two model-supplied strings; the AI label on the management summary says every euro comes from the engine although the summary is free model text; Simulation booking drafts lack the AI footer every live draft carries.
 - **Weak: robustness gaps.** One geo failure, even a 4xx caused by a model-chosen station name, disables that source for the whole tab session; live geo results read only "Result received"; the engine has no golden-value tests and nothing runs in CI.
 - **Weak: duplication and hard-coding.** ERP tool dispatch exists three times; constants such as the 60-day look-ahead, plant ids and node ids are hard-coded in otherwise generic modules; `kpi_update.series` is computed and never used.
-- **Found later (W24 to W32).** Building and reviewing the Rebate Hunter turned up more in the shared code: a decision is not tied to the set of options it was taken on, drafts are not tied to the approved option, and the summary's outcome is not tied to the decision; a retried response can leave its text on screen; keyboard focus is lost after a decision; Abort leaves open-data requests running; the key field works inside another site's frame; the offline basemap draws bands across the map, and the legend hides the subject of views the app sets.
+- **Found later (W24 to W33).** Building and reviewing the Rebate Hunter turned up more in the shared code: a decision is not tied to the set of options it was taken on, drafts are not tied to the approved option, and the summary's outcome is not tied to the decision; a retried response can leave its text on screen; keyboard focus is lost after a decision; Abort leaves open-data requests running; the key field works inside another site's frame; the offline basemap draws bands across the map, the legend hides the subject of views the app sets, and the map's view buttons hide the focus ring.
 - **Reuse verdict.** About half of the modules are a domain-neutral shell that can move into the Rebate Hunter almost unchanged once storage keys, copy and the tool registry are parameterised; the world model, engine, ERP and geo tools, prompt, map and scripts must be rewritten.
 
 ---
@@ -473,6 +473,7 @@ The documentation is unusually complete and decision-oriented; its drift is list
 | W30 | Low | Keyboard focus is lost after a decision (added after the review of the overhaul) |
 | W31 | Low | Abort leaves open-data requests running (added after the review of the overhaul) |
 | W32 | Low | The key field works inside another site's frame (added after the review of the overhaul) |
+| W33 | Low | The map's view buttons hide the keyboard focus ring (added after the review of the rebate board) |
 
 **W1 (High). Storage keys are not namespaced per app, and two bypass the central config.**
 
@@ -610,7 +611,7 @@ The documentation is unusually complete and decision-oriented; its drift is list
 - *Impact:* the presenter clicks Global view and the audience loses the plants; scenarios focused far west would hide their subject entirely.
 - *Recommendation:* measure the expanded legend and pass it as `paddingTopLeft` to `fitBounds`/`flyToBounds`, and offset `focus()` by half its width (`legendInset()` in the Rebate Hunter's `js/map.js`).
 
-W26 to W32 were found when three independent review agents checked the finished Rebate Hunter. Its code came from the Navigator, so each was checked again in the Navigator's code; the references below are the Navigator's.
+W26 to W32 were found when three independent review agents checked the finished Rebate Hunter, W33 when two more checked its rebate board. Its code came from the Navigator, so each was checked again in the Navigator's code; the references below are the Navigator's.
 
 **W26 (Low–medium). A decision is not tied to the set of options it was taken on.**
 
@@ -651,6 +652,12 @@ W26 to W32 were found when three independent review agents checked the finished 
 - *Evidence:* a meta CSP cannot set `frame-ancestors`, so any site can frame the app, and the key dialog (`js/dialogs.js:64-69`) works there as anywhere; the field relies on `autocomplete="off"`, which browsers' password managers commonly ignore for password fields.
 - *Impact:* a framing page can dress the dialog in its own context (clickjacking); the key can end up in a password manager, outside the tab session the privacy notes promise.
 - *Recommendation:* refuse key entry when `window.top !== window.self` (Simulation can stay), and add the password-manager opt-outs (`data-1p-ignore`, `data-lpignore`, `data-bwignore`, `data-form-type="other"`).
+
+**W33 (Low, accessibility). The map's view buttons hide the keyboard focus ring.**
+
+- *Evidence:* `.map-tools .btn { box-shadow: var(--shadow-soft); }` (`css/map.css:32`) outranks the shared `:focus-visible { box-shadow: var(--focus); }` (`css/style.css:119`), so *Europe network* and *Global view* look the same focused and unfocused. Found by the review of the Rebate Hunter's board, whose view buttons had copied the rule.
+- *Impact:* fails WCAG 2.4.7 (Focus Visible) on two of the map's controls.
+- *Recommendation:* add `.map-tools .btn:focus-visible { box-shadow: var(--focus), var(--shadow-soft); }`.
 
 ---
 
@@ -760,7 +767,7 @@ The Rebate Hunter was rebuilt on the Navigator's shell and design system and giv
 
 **Kept from the Streamlit version:** the business story, the register-only merge rule, the Apex counter-example, the 150 accounts and 1,203 orders bit for bit (a JavaScript port of Python's Mersenne Twister and the generator, checked against a Python fingerprint), and the headline figures (Cisco €52.4M → €1,048,000; Microsoft €47.0M below the threshold).
 
-**Taken from the Navigator:** the static no-build app, the run-event bus with two producers (live agent and simulation player), the streaming client and agent loop with every protocol rule, the guardrails pattern, the mode dialog and key handling, Diagnostics, the recorder, the run facts, the audit export, the console, KPI tiles, drawer, options, outbox, progress rail, hand-over labels, AI labels, intro window, the map framework, the full design system and the test battery.
+**Taken from the Navigator:** the static no-build app, the run-event bus with two producers (live agent and simulation player), the streaming client and agent loop with every protocol rule, the guardrails pattern, the mode dialog and key handling, Diagnostics, the recorder, the run facts, the audit export, the console, KPI tiles, drawer, options, outbox, progress rail, hand-over labels, AI labels, intro window, the map framework (replaced in 7.1.0 by the rebate board, which keeps its canvas, controls, legend and popovers), the full design system and the test battery.
 
 **Built new for the domain:**
 - A synthetic company with three company codes, a vendor master with group keys, a ledger, a subscription register of real groups (real legal entities, LEIs and acquisition dates), eight agreements with clauses, and year-end report rules (`tools/build_world.mjs`).
@@ -777,6 +784,51 @@ The Rebate Hunter was rebuilt on the Navigator's shell and design system and giv
 - **Domain corrections.** Set-off settles after a seven-day objection period; a count that leaves linked accounts out is labelled partial; dates carry the year when it is not the current one; a recorded replay runs on its recording day; the running year's projected share of the headline is shown.
 - **Usability and safety details.** The header keeps two rows down to 1280 px in every state; the legend no longer covers what a view focuses on; keyboard focus stays in the Options and Outbox panels after a decision (W30); Abort cancels open-data requests in flight (W31); the key field refuses to work inside another site's frame and asks password managers not to save it (W32).
 
+### Version 7.1.0: the rebate board instead of the map (15 October 2026)
+
+**The request.** The design already matched the Navigator, but the map did not earn its place in a rebate tool. The requester asked for an eye-catcher in its stead: the two prototypes should look alike (colour coding, UI features), while their functions follow their use cases.
+
+**What replaced it.** A **rebate board** in the map's place, built from the map's parts: the same canvas, floating caption and view buttons, legend card with toggles, popovers and state colours with a flash on change (`TECH_NOTES.md` §5, D-R42 to D-R50).
+- *Group view.* The supplier group of the agreement in focus is a hub with a ring. The accounts linked to the agreement sit on the ring (the year-end report counts them); the register members that are not linked sit outside it (the report misses them); a look-alike from the duplicate check is held apart with a struck link. Above it, the **threshold race** draws each agreement year (the closed year, the current year and, where a look-back clause allows, the look-back year) as a bar of accounts against the rebate tiers: slate counted, red missed (with a bracket saying how much), violet stripes a what-if, with the engine's figure on the right and a chip that says whose count it is (the report's, the agent's first estimate, a verified count).
+- *Live behaviour.* The board listens to the run events: it focuses the agreement the agent works on, pulses the accounts a lookup concerns, adds a badge for each fact a result confirmed (Register, Ledger, GLEIF, Wikidata, Web), fills the race from `sim_rebate` results, and after a decision moves the accounts the approved option links onto the ring. Each year then reads the engine's cash plan for that option: *option A approved*, how and when the cash comes in, or in amber what is still lost; an accepted loss stays red.
+- *The band.* When the open drawer leaves the board short, the ring becomes a band under the race, with the same dots, shapes and colours, and the race keeps the years with money open; the accounts an option links slide into the band.
+- *Portfolio view.* All eight agreements, next claim deadline first, each with the year that deadline is for; the Live sweep fills it in as it checks them.
+- *Removed.* Leaflet, the tile servers, the offline basemap, `vendor/` and the coordinates in the world; the page now loads nothing from outside (CSP `'self'` only), and an offline Simulation makes no external request at all.
+
+**How it was checked.** The engine suite checks that every race row of six scenarios in three views adds up to the engine's figures, what a decision does to each year (in full, in part, not at all, beyond the horizon, accepted), the portfolio's year, the checks on `ui_mark_board`'s ids, and the board's geometry and label spacing (26 tests). The smoke suite drives the board by mouse and keyboard and with reduced motion: popovers placed beside an account and under the race, focus kept through a redraw and given back after one, the focus ring on every board button, 44 px entities. The simulation suite checks the payoff on the board for full, partial and accepted decisions and that linked accounts glide onto the ring; the layout suite checks in five viewports and six states (the finding during the run and the legend opened by the presenter included), and for the other five scenarios at 1280 × 720 and 1600 × 900, that nothing on the board leaves the panel or covers anything else, that the group stays in view and that no race row is cut; the design suite checks the board's colours, its band and the race's key against the tokens before and after a decision.
+
+**Hardened after an independent review of the board.** Two review agents that had not built the board checked it: one the code and the documents, one the experience in all six scenarios at four sizes against the Navigator. Their findings and what was done (`TECH_NOTES.md` D-R47 to D-R49, D-R51 to D-R55):
+
+| Finding | Fix |
+|---|---|
+| A partly covered year showed as fully recovered, a year beyond the horizon as lost (code B1) | Each year reads the option's cash plan: in full, in part with the amount still lost, or not at all; beyond the horizon it stays undecided; every way in is named |
+| "Recovered" right after an approval, while the drafts were still pending (experience A7) | *option A approved*, the way in and when the cash comes in; "recovered" nowhere before cash |
+| The group disappeared at the decision: a strip of chips, below the panel at 1366 and 1280 (A1) | The band: hub, ring and outside accounts in one line under the race, shapes kept under the colours, the accounts an option links sliding in |
+| Race rows cut in half with the drawer open (A9) | A short board keeps whole rows, the years with money open first, one line under each figure, and says how many it leaves out |
+| Accounts the report counts shown amber or red (A2); Apex's reason missing | A verified alert restates the agreement's accounts; the scripts open on the group only; the Schneider alert no longer names the UK account or company code 2000; *Linked, but the report lists Apex only from €5M* |
+| The portfolio hid Microsoft's look-back money (B3, A3) | Each agreement shows the year whose claim is due next, with its decision, named under the deadline |
+| Accounts jumped onto the ring instead of gliding (B2) | The constellation's render no longer places; the board places once per draw, so the glide plays |
+| Keyboard focus lost on every redraw; no focus ring on the view buttons, the hub and the codes (B4, A6) | Codes, band and portfolio rows kept across redraws; the popover finds its button again by key; a portfolio row moves the focus into the group; the shared ring next to each button's shadow |
+| States by colour only in some names; 40 px codes and strip buttons (B6) | State words in the names of codes, rows and the hub; every board entity 44 px |
+| Type too small for a projector; the missed amount only in segment lengths (A4); ring capped at 150 px; ring closing around the hub at 1280 (A14) | Larger names, tiers, totals and labels; a bracket "€20.10M missed by the report"; ring up to 190 px; the hub sized with the ring, halos dropped on a small ring |
+| A legend 644 px tall with its toggles out of view, covering labels when opened (A5, A13) | Toggles first, one line per entry, the race's key moved into the race's head; the folded legend and the codes are obstacles for labels; the legend folds when either side of the ring needs its room |
+| Ambiguous year names; two notations for millions; "Sept"; "No claim … claim by" (A8, A15) | *Look-back year*, *Closed year*, *Current year*; "€50M" on ticks and in captions; three-letter months; "window closes"; *Eligible spend* in the year's details |
+| The bar's total covered the tier tick (A10); the year's details covered its bar (A11); the flagged portfolio row out of view (A12) | The total steps past a tick; the details open under the race with a tip; the portfolio scrolls to the row being checked or flagged and fades while more lie below |
+| Dates one day early west of UTC (B5); a tier "crossed" on a change of agreement (B8); the basis chip gone on a short board (B9); counterparties drawn with a register link and no state (B10); `ui_mark_board` accepting ids of the wrong kind (suspected) | Bare dates read as local days; rows rebuilt per agreement; the chip moves into the caption and the row names say the basis; counterparties without a group have no register link and take the agreement's mark; ids checked per list and reported |
+| A sweep's complete first count tagged *First estimate* (B7) | Kept: the board names the same stage as the KPI tiles (D-R55) |
+| Same icon for the group and the company codes; bare codes; view buttons losing their words at 1366; the current-year row appearing mid-run (A16) | A hub icon for the group; codes with their city; words kept down to 640 px; the current year on the race from the start (*not run yet*) |
+| "An independent review of the board followed (Part 6)", with no review in Part 6 (B11) | This table |
+
+**Checked again.** A third agent, new to the board, re-checked every finding in the six scenarios at four sizes and eight states, against the engine and the Navigator. It confirmed the fixes above and found what they had left or caused; all of it was fixed:
+- *Labels on labels* once type and ring grew (Apex's look-alike over the group's caption at 1600, Cisco's three outside labels at 1280). The geometry now measures how far each account and its label reach, and picks the largest ring, the widest outside ellipse and the widest labels that fit; a look-alike's label takes the side away from the hub; labels drop their reason as a last step, and when they still cannot be placed, the band takes over. Rings below 48 px are no longer drawn.
+- *An opened legend scrambled the labels.* The legend opens by itself only where the whole card fits; when the presenter opens it, the group makes room beside it (a smaller ring, slimmer labels) or gives way to the band.
+- *"+1 year not shown" invisible on a short board*: it moves into the caption with the chip.
+- *Counted accounts amber after a partial decision*: only the gap accounts and the group turn amber; Salesforce's UK company code follows what options B and C do about pound invoices.
+- *The year's details under the row, not the race card*: they now open under the card and cover no bar.
+- Smaller points: the race keeps the result the decision was taken on after a recount (figures from one result only); `vendor_ids` take vendor accounts only; green reads *approved or settled*; the portfolio names the deadline's year on its own line, brings the flagged row back into view when the drawer changes its height, and never leads with a year it does not show; a new agreement's totals no longer slide across the ticks; the band keeps amounts with short names and gives them for the year the race leads with; the group's caption keeps clear of the folded legend; the closed year is never hidden as a quiet year; the do-nothing card and the KPI tooltip say *current year*, like the board.
+
+The layout suite now also checks the finding during the run (all six scenarios, 1280 and 1600 px wide) and the legend opened by the presenter.
+
 ---
 
 ## Part 4. Parity checklist
@@ -789,15 +841,15 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 |---|---|---|---|
 | P1 | Palette generated from `#7a1e3a` in OKLCH, 12-step scales, roles | Same generator and source; all 96 token values identical; `tools/palette.mjs --check` 45/45 | Same |
 | P2 | Barlow, Barlow Semi Condensed, IBM Plex Mono, self-hosted | Same files and `@font-face` rules | Same |
-| P3 | Layout: header (brand, badges, four KPI tiles), control bar, map 60 % / console 40 %, drawer (Options, Outbox, Audit) | Same grid, sizes and breakpoints | Same |
+| P3 | Layout: header (brand, badges, four KPI tiles), control bar, map 60 % / console 40 %, drawer (Options, Outbox, Audit) | Same grid, sizes and breakpoints; the rebate board takes the map's panel | Same |
 | P4 | Components: buttons, chips, KPI tiles, option cards, comparison bars, outbox cards, AI label, progress rail, status pill, legend, modals, console entries | `css/style.css`, `components.css`, `console.css`, `drawer.css`, `modals.css`, `fonts.css` identical | Same |
 | P5 | Colour grammar: burgundy = human, violet = AI, red/amber/green = network, blue = checking, hazard = simulation | Same rules; red/amber/green mean rebate positions | Adapted |
 | P6 | Logo and favicon (burgundy tile, white mark) | Own mark: three accounts converging into one group ring, same tile, colours and sizes | Adapted |
 | P7 | Boot screen, `file://` help, missing-file report | Same | Same |
-| P8 | Motion and reduced motion | Same | Same |
-| P9 | Accessibility: skip link, live regions, modal focus trap, keyboard dropdowns, 40 px targets, focus ring | Same, plus `aria-busy` on streaming entries | Improved (W8) |
+| P8 | Motion and reduced motion | Same, plus the board's motion (growing race, tier pulse, count-up, accounts sliding into the band and gliding onto the ring after a decision), all of it off under reduced motion | Adapted |
+| P9 | Accessibility: skip link, live regions, modal focus trap, keyboard dropdowns, 40 px targets, focus ring | Same, plus `aria-busy` on streaming entries; every board entity is a button of at least 44 px with a full accessible name, kept across redraws, with the focus ring next to its own shadow, and its popover returns the focus | Improved (W8, W11) |
 | P10 | Projector features: Larger text, washout and colour-blind review, five viewports | Same | Same |
-| P11 | Map: OSM tiles desaturated, CARTO optional, offline basemap, legend with toggles, two view buttons, popovers, state styling and flash, view kept on resize | Vendor accounts by spend band, group headquarters with labels, register links (dashed when acquired), billing links, company codes; "Europe view" and "Global view"; legend-aware views, far-zoom glyphs, offline basemap without antimeridian bands, city clusters spread | Adapted, Improved (W24, W25) |
+| P11 | Map: OSM tiles desaturated, CARTO optional, offline basemap, legend with toggles, two view buttons, popovers, state styling and flash, view kept on resize | **Rebate board** (7.1.0): the same canvas, floating caption, two view buttons (*Group view*, *Portfolio view*), legend card with groups and toggles, popovers, state colours with flash; the group as a hub with the linked accounts on its ring and the register members outside (a band of the same when the board is short), look-alikes held apart, company codes in burgundy, the threshold race of the agreement years; all agreements in the portfolio; the legend never covers the finding. No tiles, basemap or Leaflet. (7.0.0 had an adapted map with W24 and W25 fixed.) | Changed (D-R42, requested 15 Oct 2026) |
 
 ### Run model and features
 
@@ -816,13 +868,13 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 | F11 | Save run as simulation (recorder) | Same; refused tool calls and discarded attempts leave no step; a recording carries the world and engine versions, replays on its recording day and is audited like a live run | Improved (W29) |
 | F12 | Run facts on the console's last line and in the export | Same, plus guardrail refusals | Improved |
 | F13 | Audit log tab with filters and JSON export | Same | Same |
-| F14 | Diagnostics: API, open-data rows, tiles, Leaflet, world integrity, key and privacy, paid web-search probe, version footer | GLEIF, Wikidata and ECB rows; failure memory in its own module (network/5xx only, ten minutes, worded by origin); the privacy row notes other apps' keys on the same origin | Adapted, Improved (W4) |
+| F14 | Diagnostics: API, open-data rows, tiles, Leaflet, world integrity, key and privacy, paid web-search probe, version footer | GLEIF, Wikidata and ECB rows; no tiles or Leaflet rows since 7.1.0 (nothing to load); failure memory in its own module (network/5xx only, ten minutes, worded by origin); the privacy row notes other apps' keys on the same origin | Adapted, Improved (W4) |
 | F15 | Open-data tools: Open-Meteo, USGS, EONET, PEGELONLINE | GLEIF (entity and ultimate parent), Wikidata (ownership), ECB rates (Frankfurter); Abort cancels requests in flight | Replaced, Improved (W31) |
 | F16 | ERP tools: suppliers, BOM, stock, orders, routes, alternatives | Agreements, vendors, spend, duplicate check, register (family tree), year-end report | Replaced |
 | F17 | Deterministic impact engine (stop days, line-stop cost, seven mitigations) | Deterministic rebate engine (tiers, deadlines, five response actions) | Replaced |
 | F18 | Intro window: five steps, three value points, under 200 words | Same structure, rebate copy | Adapted |
 | F19 | Console logbook: labels, struck-through revisions, reasoning, tool lines with summaries, alerts, decisions, report, run-end line, Jump to latest | Same, plus Guardrail lines, the evidence checked for a verified alert, and discarded attempts greyed and marked; every tool has its own summary | Improved (W6, W29) |
-| F20 | KPI tiles: Value at risk, First line stop in, Detection → decision, Session cost; payoff after a decision | Rebate at risk, Claim deadline in, Detection → decision, Session cost; same payoff mechanism; a first estimate is muted, a partial count labelled, and the tooltip gives the running year's projected share | Adapted |
+| F20 | KPI tiles: Value at risk, First line stop in, Detection → decision, Session cost; payoff after a decision | Rebate at risk, Claim deadline in, Detection → decision, Session cost; same payoff mechanism; a first estimate is muted, a partial count labelled, and the tooltip gives the current year's projected share | Adapted |
 | F21 | Hand-over labels: Awaiting your decision / your approval | Same | Same |
 | F22 | Progress rail: Spot, Check, Calculate, Propose, Prepare | Same | Same |
 | F23 | AI labels on options, drafts and summary | Same; drafts and summary say their amounts were checked | Improved (W2) |
@@ -832,12 +884,14 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 | F27 | Error banners with redaction | Same | Same |
 | F28 | Abort and Reset hygiene; "New run" | Same; "New run" no longer wipes the finished run before the mode is chosen | Improved (W10) |
 | F29 | Replay speed ×1, ×2, ×4 | Same | Same |
-| F30 | Map popovers from ERP queries | Vendor, company code, group and register-link popovers | Adapted |
+| F30 | Map popovers from ERP queries | Board popovers from ERP queries and engine results: account (with its place on the board and what the run checked), group or counterparty, company code, a year of the race (with the decision, under the race with a tip); keyboard-reachable, focus returns | Adapted, Improved (W11) |
 | F31 | Orders in transit on the map | Not applicable (no logistics); orders appear as ledger data in `erp_get_spend` | Changed |
+| F32 | `ui_mark_map` tool, `map_update` event, `map` script steps | `ui_mark_board` (also agreement ids for the portfolio), `board_update`, `board` steps; the board follows lookups, results, alerts and decisions by itself, so the agent marks only what those do not show | Changed (D-R45) |
+| F33 | Payoff after a decision on the map (entities turn green or amber) | On the board: the accounts the option links glide onto the ring (slide into the band while the drawer is open); a year the option covers turns green and says *approved*, a year covered in part or not at all amber with what is still lost; an accepted loss stays red and says so | Adapted, Improved (D-R47) |
 
 ### Shared shell (identical apart from names and comments)
 
-`js/events.js` (contract comment adapted), `js/anthropic.js`, `js/sse.js`, `js/cost.js`, `js/keystore.js`, `js/dom.js`, `js/md.js`, `js/modal.js`, `js/libs.js`, `js/handover.js`, `js/progress.js`, `js/drawer.js`, and `css/` except `map.css`. Keep these in step in both repositories (`DESIGN.md` §9).
+`js/events.js` (contract comment adapted), `js/anthropic.js`, `js/sse.js`, `js/cost.js`, `js/keystore.js`, `js/dom.js`, `js/md.js`, `js/modal.js`, `js/handover.js`, `js/progress.js`, `js/drawer.js`, and `css/` except `board.css`. Keep these in step in both repositories (`DESIGN.md` §9). `js/libs.js` (the Leaflet loader) left the Rebate Hunter with the map in 7.1.0; the Navigator keeps it.
 
 ### Tests, tooling and documents
 
@@ -846,13 +900,13 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 | T1 | tokens (`tools/palette.mjs --check`) | Same | Same |
 | T2 | world (`tools/check_world.mjs`, 32 checks) | 34 checks for the rebate world; the scripts are held to the live guardrail policy | Adapted, Improved |
 | T3 | unit | Same | Same |
-| T4 | smoke (8 cases) | 8 cases | Adapted |
-| T5 | sims (6 scripts, four decision patterns) | Same plans for the rebate scripts | Adapted |
+| T4 | smoke (8 cases) | 8 cases; the two Leaflet cases became *board* (mouse, keyboard, popovers and their placement, focus through a redraw, focus rings, portfolio, 44 px entities, no external request) and *motion* (reduced motion) | Adapted |
+| T5 | sims (6 scripts, four decision patterns) | Same plans for the rebate scripts, Salesforce now with a partial option; the payoff checked on the board (approved years, the amount still lost, accounts gliding onto the ring, accepted loss), no network at all | Adapted |
 | T6 | live (7 cases against the fake API) | The same seven, with a figure-audit refusal, a GLEIF 404, the source memory and the open-data parsers added, plus an eighth case for the guardrails: broken-off evidence, a register-only verified alert, a stale decision, a posting without set-off, a German-format wrong amount, a contradicting outcome | Adapted, Improved |
-| T7 | accept (key, Diagnostics, Abort/Reset, offline) | Same, with GLEIF blocked | Adapted |
-| T8 | layout (five viewports, idle and options; touch targets) | Same, plus the outbox state and the other five scenarios at 1280×720 (7 checks) | Adapted, Improved |
-| T9 | design | Same | Same |
-| T10 | — | engine (19 tests): legacy data vs Python, `difflib` vs Python, golden figures, refusals, the guardrail policy | New (W7) |
+| T7 | accept (key, Diagnostics, Abort/Reset, offline) | Same, with GLEIF blocked; offline means no external request at all | Adapted |
+| T8 | layout (five viewports, idle and options; touch targets) | Same, plus the finding, outbox, approved and opened-legend states, the other five scenarios at 1280×720 and 1600×900, and on the board nothing leaving the panel or covering anything else, the group in view and no cut race row (7 checks) | Adapted, Improved |
+| T9 | design | Same, with the board's accounts (ring or band), links, race segments, the race's key and the legend checked against the tokens before and after a decision | Adapted |
+| T10 | — | engine (26 tests): legacy data vs Python, `difflib` vs Python, golden figures, refusals, the guardrail policy, the rebate board's data, decisions and geometry | New (W7) |
 | T11 | — | GitHub Actions workflow | New (W7) |
 | T12 | `README.md`, `DESIGN.md`, `TECH_NOTES.md`, `DATA_SOURCES.md`, `DEMO_SCRIPT.md`, `tests/README.md` | Same set, rewritten for the rebate domain | Adapted |
 | T13 | — | `REVIEW.md` (this file) | New |
@@ -861,7 +915,7 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 
 ## Part 5. Back-port recommendations for the Navigator
 
-Findings W1–W32 with what the Rebate Hunter did. "Ported" items can move back into the Navigator mostly as they are.
+Findings W1–W33 with what the Rebate Hunter did. "Ported" items can move back into the Navigator mostly as they are.
 
 | ID | Finding | In the Rebate Hunter | Back-port |
 |---|---|---|---|
@@ -875,21 +929,21 @@ Findings W1–W32 with what the Rebate Hunter did. "Ported" items can move back 
 | W8 | Streaming re-rendered inside `aria-live` | `aria-busy` while streaming | Port (two lines in `console.js`) |
 | W9 | Palette checks miss two pairs in use | Open in both (palettes kept identical) | Fix in both together |
 | W10 | "New run" wipes the run before the mode is chosen | Fixed in `ui.js` | Port |
-| W11 | Map entities mouse-only | Open in both | Fix in both together |
+| W11 | Map entities mouse-only | Closed by the rebate board (7.1.0): every account, the group, each company code, race row and portfolio row is a button of at least 44 px, reachable by keyboard, with a popover that returns the focus | Give the Navigator's markers the same: keyboard-reachable buttons with a 44 px hit area |
 | W12 | `kpi_update.series` unused | Not emitted | Stop emitting |
-| W13 | Hard-coded ids and magic numbers | Engine constants exported (`DEFAULT_HORIZON_DAYS`, `UI.urgentDays`); a few label placements remain in `map.js` | Partial |
+| W13 | Hard-coded ids and magic numbers | Engine constants exported (`DEFAULT_HORIZON_DAYS`, `UI.urgentDays`); the board's layout numbers are named in `js/board_group.js` | Partial |
 | W14 | Duplicated logic | One ERP tool table, one labels module | Port the pattern |
 | W15 | Prompt and tools disagree without web search; recommendation not checked | Both fixed | Port |
 | W16 | Guardrail stops end with mixed statuses | Open in both | Decide together |
 | W17 | Event contract drift; simulated inputs differ from live | Inputs in the live shape; contract comment updated | Port |
 | W18 | Discarded `max_tokens` narration stays visible | Fixed with W29: ids per attempt and an `attempt_discarded` event | Port with W29 |
-| W19 | CSP allows both CDNs wholesale | Exact Leaflet file URLs | Port |
+| W19 | CSP allows both CDNs wholesale | Exact Leaflet file URLs in 7.0.0; since 7.1.0 no CDN at all (`'self'` only) | Port the exact-URL policy (the Navigator keeps Leaflet) |
 | W20 | Downgrades keyed on error wording | Open in both | Decide together |
 | W21 | Cost meter omits failed streams | Open in both | Decide together |
-| W22 | Dead code | Removed from the app's own modules; the shared shell keeps `$`/`$$` (`dom.js`) and `isOpen`/`active` (`drawer.js`) so it stays identical | Remove in both together |
+| W22 | Dead code | Removed from the app's own modules; the shared shell keeps `$`/`$$` and, since the map left, `escapeHtml` (`dom.js`), and `isOpen`/`active` (`drawer.js`) so it stays identical | Remove in both together |
 | W23 | Report dialog calls recordings "scripted"; intro step colours; drawer tabs | Recording named correctly; the other two kept for parity | Port the first; decide the others together |
-| W24 | **New.** The offline basemap draws bands across the map: two Natural Earth rings (Chukotka, Fiji) step from +180° to −180°, visible at 65–69° N in the Navigator's Global view without tiles | `tools/build_basemap.mjs` unwraps and cuts such rings | Rebuild the Navigator's basemap with the same step |
-| W25 | **New.** In the Global view the expanded legend covers Leipzig and Győr; views the app sets ignore the legend | Focus offset and fit padding by the legend's width (`legendInset` in `map.js`), kept when the legend is collapsed or a layer toggled | Port |
+| W24 | **New.** The offline basemap draws bands across the map: two Natural Earth rings (Chukotka, Fiji) step from +180° to −180°, visible at 65–69° N in the Navigator's Global view without tiles | Fixed in 7.0.0 (`tools/build_basemap.mjs` unwrapped and cut such rings); the file left with the map in 7.1.0 and stays in this repository's history (commit `d3a4373`) | Rebuild the Navigator's basemap with that step |
+| W25 | **New.** In the Global view the expanded legend covers Leipzig and Győr; views the app sets ignore the legend | Fixed in 7.0.0 in `map.js` (`legendInset`, history at commit `d3a4373`); the board keeps the rule: the legend folds or steps aside so it never covers the race or the accounts | Port from the history |
 | W26 | **New.** A decision is not tied to the set of options it was taken on | `options_seq` on `options` and `option_decision`; older decisions ignored in tool and panel; no new options after an approval | Port |
 | W27 | **New.** Drafts are not tied to the approved option | `draftError` in `js/guards.js`: drafts only of the kinds the approved option contains | Port, with the mitigation types as kinds |
 | W28 | **New.** The summary's outcome is chosen freely | `reportOutcome` in `js/guards.js` derives it from the decision and refuses a contradiction | Port |
@@ -897,8 +951,9 @@ Findings W1–W32 with what the Rebate Hunter did. "Ported" items can move back 
 | W30 | **New.** Keyboard focus is lost after a decision | Focus moves to the next pending button or the panel | Port (`options_panel.js`, `outbox.js`) |
 | W31 | **New.** Abort leaves open-data requests running | The run's signal reaches every request; aborted requests and rate limits are not remembered as failures | Port (`geo.js`, `tools.js`) |
 | W32 | **New.** The key field works inside another site's frame | Key entry refused when framed; password-manager opt-outs on the field | Port (`dialogs.js`) |
+| W33 | **New.** The map's view buttons (`.map-tools .btn`) set a box-shadow that replaces the shared focus ring, so keyboard focus is invisible on them (WCAG 2.4.7); found by the board's review on the same pattern | The board's view buttons, hub and company codes list `var(--focus)` next to their own shadow under `:focus-visible` (`css/board.css`) | Port to `css/map.css` (one rule) |
 
-Two smaller RH additions are also worth taking back: Guardrail lines in the console with a count in the run facts, and the supplier group (here) or plant (Navigator) following the money after a decision.
+Three smaller RH additions are also worth taking back: Guardrail lines in the console with a count in the run facts; the supplier group (here) or plant (Navigator) following the money after a decision; and a missed state shown red in the popovers (the Navigator's popups show it grey, and its at-risk chip uses the burgundy of a human decision).
 
 ---
 
@@ -909,14 +964,19 @@ Two smaller RH additions are also worth taking back: Guardrail lines in the cons
 2. **Exactly three costed options plus doing nothing**, as in the Navigator, replacing the Streamlit version's single approve/reject gate.
 3. **Storage prefix `rh.`**, so both apps can live on the same `github.io` origin without sharing a key, intro flag or failure memory.
 
+**Requested on 15 October 2026:** replace the map with an eye-catcher that fits the rebate domain, keeping the Navigator's design language. Done in 7.1.0 (Part 3): the rebate board. The board's own design choices (a hub-and-ring group view, a threshold race, a portfolio view; no geography at all) were not put to the requester before building; each is easy to change.
+
 **Deployment.** Merging this into `main` removes `app.py`, so the Streamlit app at `prockickbackhunter.streamlit.app` will fail until it is pointed at the branch `legacy-streamlit` (or retired). GitHub Pages for this repository: Settings → Pages → Deploy from a branch → `main` / `(root)`; the site appears at `https://victorpflueger.github.io/PROC-Rebate-Hunter/`.
 
 **Not verified in this build** (no API key and no access to the open-data hosts from the build environment):
 - A real live run with a key: timing, cost and the model's actual path. The protocol, guardrails and recorder are covered by the fake-API suite; the run facts and the audit export give the real numbers in rehearsal.
 - Browser CORS of GLEIF (undocumented). Diagnostics tests it on the presentation laptop; the agent falls back if it fails.
 
-**Open in both apps:** W9, W11, W16, W20, W21 and part of W23 (Part 5). They touch the shared shell, so they should be fixed in both repositories at once to keep the prototypes identical. W21 matters a little more now that discarded attempts are visible: their tokens are billed but not metered.
+**Open in both apps:** W9, W16, W20, W21 and part of W23 (Part 5). They touch the shared shell, so they should be fixed in both repositories at once to keep the prototypes identical. W11 (mouse-only map entities) is closed in the Rebate Hunter by the rebate board and stays open in the Navigator's map. W21 matters a little more now that discarded attempts are visible: their tokens are billed but not metered.
 
 **Open in the Rebate Hunter:**
-- **The headline includes a projection.** "Rebate at risk" counts the running year's projected rebate, about half of the figure in five of the six scenarios (the Microsoft correction has none). The do-nothing card and the tile's tooltip show that part; whether the headline should leave it out is a business choice.
+- **The board on a small laptop.** At 1280 × 720 with the drawer open the board is about 180 px tall: the band then shows the accounts as dots, without names, when their names do not fit one line (Broadcom), and the race keeps one year. The names stay in the buttons' accessible names and tooltips, and **Hide** brings the full board back.
+- **A sweep's first count reads *First estimate*** on the race and in the portfolio, as on the KPI tiles (D-R55), though it counts every linked account and register member. Changing it means changing the KPI stage too.
+- **The report's view mixes two sources** in principle: its bar and tiers use the engine's count of the linked accounts, its "listed" and "rebate shown" the ERP's year-end report, which does not adjust for an acquisition inside the year. No linked account of world 1.2.0 was acquired inside the look-back or closed year, so the two agree everywhere today (checked for all 21 linked accounts).
+- **The headline includes a projection.** "Rebate at risk" counts the current year's projected rebate, about half of the figure in five of the six scenarios (the Microsoft correction has none). The do-nothing card and the tile's tooltip show that part; whether the headline should leave it out is a business choice.
 - **One clause is approximated.** The Microsoft agreement's 15-month look-back is modelled as 456 days; a calendar 15 months can be 457, so the engine is one day conservative (`DATA_SOURCES.md`).

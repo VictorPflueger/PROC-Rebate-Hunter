@@ -26,9 +26,9 @@ import { EvidenceLog, FigureLedger, verifiedAlertError, draftError, reportOutcom
 import { summarizeToolResult } from "./summaries.js";
 
 const OPEN = new Set(["open_gleif_search", "open_gleif_parent", "open_wikidata_owner", "open_ecb_rate"]);
-const KINDS = ["state", "say", "think", "tool", "web", "open", "recordedTool", "rebate", "alert", "map", "options", "awaitOption", "draft", "awaitActions", "report", "notice", "end"];
+const KINDS = ["state", "say", "think", "tool", "web", "open", "recordedTool", "rebate", "alert", "board", "options", "awaitOption", "draft", "awaitActions", "report", "notice", "end"];
 const STATES = new Set(["scanning", "diagnosing", "verifying", "simulating", "options", "awaiting_approval", "executing"]);
-const MAP_STATES = new Set(["affected", "at_risk", "resolved", "neutral"]);
+const BOARD_STATES = new Set(["affected", "at_risk", "resolved", "neutral"]);
 const BROKEN = /\b(undefined|NaN)\b/;
 
 /** Checks for every preset scenario's script. Returns [{name, ok, detail}]. */
@@ -181,12 +181,14 @@ export function checkSimRun(model, scenarioId, def, rc = {}) {
           if (main) stats.alerts += 1;
           break;
         }
-        case "map": {
-          const m = step.map || {};
-          if (!MAP_STATES.has(m.state)) errors.push(`${where}: unknown map state "${m.state}"`);
-          for (const id of [...(m.vendor_ids || []), ...(m.link_ids || []), ...(m.group_ids || []), ...(m.company_code_ids || []), ...(Array.isArray(m.fit) ? m.fit : [])]) {
+        case "board": {
+          const m = step.board || {};
+          if (!BOARD_STATES.has(m.state)) errors.push(`${where}: unknown board state "${m.state}"`);
+          for (const id of [...(m.vendor_ids || []), ...(m.link_ids || []), ...(m.group_ids || []), ...(m.company_code_ids || []), ...(m.agreement_ids || [])]) {
             if (!knownId(id)) errors.push(`${where}: unknown id ${id}`);
           }
+          if (m.focus !== undefined && !model.agreements.has(m.focus)) errors.push(`${where}: the board can only show an agreement (RA-…), not "${m.focus}"`);
+          if (m.view !== undefined && m.view !== "portfolio") errors.push(`${where}: unknown board view "${m.view}"`);
           break;
         }
         case "options": {

@@ -6,14 +6,15 @@
 //            tool (no request to the host) and falls back to web search
 //   abort    Abort/Reset matrix in Simulation and Live at several phases; every path recovers to
 //            Idle and a new run completes
-//   offline  Simulation with every external host blocked (no CDN, no tiles, no APIs): runs to Done,
-//            SIMULATION badge and watermark visible at every stage, replay facts shown
+//   offline  Simulation with every external host blocked (no APIs): runs to Done with the rebate
+//            board drawn, SIMULATION badge and watermark visible at every stage, replay facts shown,
+//            and not a single request leaves the page's own server
 // Usage: node tests/accept.mjs [case…]
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { createFakeClaude } from "./lib/fake-claude.mjs";
 import { openDataFixture, OPEN_HOSTS, LEI } from "./lib/fixtures.mjs";
-import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, fulfilLeaflet, CORS, MOCK_KEY, NETWORK_NOISE, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
+import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, CORS, MOCK_KEY, NETWORK_NOISE, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
 
 const ROOT = APP_ROOT;
 const OUT = await outDir("accept");
@@ -35,7 +36,7 @@ async function loadRef() {
 /**
  * A page with a swappable fake Anthropic API and a full request log.
  * opts.blockHosts: hosts whose requests fail at network level (like a firewall or CORS block).
- * opts.offline: every non-local request fails (no CDN, no tiles, no APIs).
+ * opts.offline: every non-local request fails (no APIs, no open data).
  */
 async function newPage({ blockHosts = [], offline = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, acceptDownloads: true });
@@ -55,7 +56,6 @@ async function newPage({ blockHosts = [], offline = false } = {}) {
     const req = route.request();
     const u = new URL(req.url());
     if (offline || blockHosts.includes(u.host)) return route.abort("failed");
-    if (await fulfilLeaflet(route)) return;
     if (u.host === "api.anthropic.com") {
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { ...CORS, "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST" } });
       if (u.pathname === "/v1/models") return route.fulfill({ status: 200, headers: { ...CORS, "content-type": "application/json" }, body: JSON.stringify({ data: [{ id: "claude-sonnet-5-5" }, { id: "claude-haiku-5-5" }, { id: "claude-opus-5-5" }] }) });
@@ -156,7 +156,7 @@ if (run("key")) {
   try {
     await boot(page);
     checks.noKeyAtLoad = await page.evaluate((k) => !sessionStorage.getItem(k), KEYS.apiKey);
-    checks.rendered = await page.evaluate(() => !!document.querySelector("#map .leaflet-container, #map .offline-map, #map") && document.querySelectorAll(".kpi").length);
+    checks.rendered = await page.evaluate(() => !!document.querySelector("#board .race-row") && !!document.querySelector("#board .hub-btn") && document.querySelectorAll(".kpi").length);
     // Privacy row with no key
     await page.click("#btn-diagnostics");
     await page.waitForFunction(() => [...document.querySelectorAll(".diag-table tbody tr")].some((r) => /Key and privacy/.test(r.textContent) && r.querySelector('.diag-status[data-s="pass"], .diag-status[data-s="fail"]')), null, { timeout: 5000 });
@@ -247,7 +247,7 @@ if (run("key")) {
     checks.keyOnlyInHeader = carrying.every((r) => r.host === "api.anthropic.com" && r.headers["x-api-key"] === KEY && !r.url.includes("MOCKKEY") && !r.body.includes("MOCKKEY"));
     expect(carrying.length > 0 && checks.keyOnlyInHeader, "the key may travel only in the x-api-key header to api.anthropic.com");
     checks.hostsContacted = [...new Set(t.requests.map((r) => r.host))].sort();
-    const allowed = new Set([new URL(BASE).host, "api.anthropic.com", ...OPEN_HOSTS, "unpkg.com", "tile.openstreetmap.org", "a.tile.openstreetmap.org", "b.tile.openstreetmap.org", "c.tile.openstreetmap.org", "a.basemaps.cartocdn.com", "b.basemaps.cartocdn.com", "c.basemaps.cartocdn.com", "d.basemaps.cartocdn.com"]);
+    const allowed = new Set([new URL(BASE).host, "api.anthropic.com", ...OPEN_HOSTS]);
     checks.unexpectedHosts = checks.hostsContacted.filter((h) => !allowed.has(h));
     expect(checks.unexpectedHosts.length === 0, `unexpected hosts: ${checks.unexpectedHosts.join(", ")}`);
     checks.consoleMentionsKey = t.log.consoleAll.filter((x) => x.includes("MOCKKEY") || x.includes(KEY));
@@ -508,7 +508,6 @@ if (run("offline")) {
   };
   try {
     await boot(page);
-    checks.leaflet = await page.evaluate(() => (window.L ? `Leaflet ${window.L.version}` : "no Leaflet"));
     await pickScenario(page, "SC-CRM-FX");
     await page.click('button[aria-label="Replay speed ×4"]');
     await startMode(page, "simulation");
@@ -531,15 +530,20 @@ if (run("offline")) {
     expect(/Replay facts:/.test(checks.end), "offline replay should end with Replay facts");
     checks.decisions = await page.$$eval(".action-card", (els) => els.map((e) => e.dataset.status).join(","));
     expect(/approved/.test(checks.decisions) && /rejected/.test(checks.decisions), "both draft approval and rejection should play");
-    checks.mapFallback = await page.evaluate(() => !!document.querySelector(".offline-basemap, .leaflet-overlay-pane svg path, .leaflet-pane"));
+    checks.board = await page.evaluate(() => ({
+      race: document.querySelectorAll("#board .race-row").length,
+      recovered: document.querySelectorAll('#board .race-out[data-tone="resolved"]').length,
+      accounts: document.querySelectorAll("#board .acct, #board .band-acct").length
+    }));
+    expect(checks.board.race > 0 && checks.board.recovered > 0 && checks.board.accounts > 0, `the rebate board is drawn offline and shows the approved claim (${JSON.stringify(checks.board)})`);
     checks.externalAttempts = [...new Set(t.requests.filter((r) => !r.host.startsWith("127.0.0.1")).map((r) => r.host))].sort();
-    expect(checks.externalAttempts.every((h) => /unpkg\.com|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|basemaps\.cartocdn\.com/.test(h)), `offline simulation tried non-tile hosts: ${checks.externalAttempts.join(", ")}`);
+    expect(checks.externalAttempts.length === 0, `an offline simulation must not try any external host: ${checks.externalAttempts.join(", ")}`);
     await page.screenshot({ path: path.join(OUT, "A-offline-done.png") });
   } catch (e) {
     problems.push(`exception: ${String(e.message).split("\n")[0]}`);
     await page.screenshot({ path: path.join(OUT, "A-offline-fail.png") }).catch(() => {});
   }
-  await finish("Simulation fully offline (no CDN, no tiles, no APIs)", t, checks, problems);
+  await finish("Simulation fully offline (no external request at all)", t, checks, problems);
 }
 
 await browser.close();

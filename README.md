@@ -2,7 +2,7 @@
 
 A live, agentic AI demo for procurement. Rebate Hunter watches a fictional industrial group, GlobalCorp SE (three company codes, 161 vendor accounts, eight supplier rebate agreements), and answers a question every procurement controller should ask: *which supplier rebates did we earn but never claim, how much are they worth, by when must we claim them, and what is the cheapest way to get the money back?*
 
-**Version 7.0.0.** Static website, no backend, no build step. Runs on GitHub Pages or any static host. It replaces the Streamlit prototype (v6.2), which is preserved on the branch `legacy-streamlit`.
+**Version 7.1.0.** Static website, no backend, no build step. Runs on GitHub Pages or any static host. It replaces the Streamlit prototype (v6.2), which is preserved on the branch `legacy-streamlit`.
 
 ---
 
@@ -16,16 +16,16 @@ Rebate Hunter shows an AI agent doing the joining-up in minutes. It takes an unv
 
 | Preset scenario (real groups, fictional accounts) | What the agent finds | Rebate at risk |
 |---|---|---|
-| Cisco acquisitions | Meraki, Acacia and Splunk invoice on their own accounts. Counted with them, the Cisco group bought **€52.4M** in the agreement year and crossed **€50m**: 2 % = **€1,048,000** owed, and the running year slips the same way | €2.14M |
+| Cisco acquisitions | Meraki, Acacia and Splunk invoice on their own accounts. Counted with them, the Cisco group bought **€52.4M** in the agreement year and crossed **€50m**: 2 % = **€1,048,000** owed, and the current year slips the same way | €2.14M |
 | Microsoft look-back | This agreement year stays at **€47.0M**, below the threshold: an honest negative. The previous year reached €51.0M, and the 15-month look-back clause still covers it | €1.02M |
 | Apex look-alikes | The duplicate check calls two Apex accounts 67 % similar, but the register puts them in different groups: **no merge**. Apex Robotics Solutions alone reached the 1.5 % tier, which the report rule hid | €70,725 |
 | Broadcom and VMware | Two VMware accounts sit outside Broadcom's statement, which credited the 1 % tier instead of 3 % | €1.75M |
 | Schneider Electric and AVEVA | Counted across all company codes and with AVEVA, the group crossed the 2.5 % tier; the claim window closes in days | €892,500 |
 | Salesforce in pounds | The report counts only euro invoices; Salesforce UK's pounds at the contract rate, plus Tableau, reach the 3 % tier | €1.52M |
 
-*Rebate at risk* is what the gap loses within 400 days if nobody acts: the closed years' open rebate plus, where its deadline falls inside the 400 days, the running year's rebate, projected from last year (the same gap loses it too). The do-nothing card shows the projected part; for Cisco it is €1.09M of the €2.14M.
+*Rebate at risk* is what the gap loses within 400 days if nobody acts: the closed years' open rebate plus, where its deadline falls inside the 400 days, the current year's rebate, projected from last year (the same gap loses it too). The do-nothing card shows the projected part; for Cisco it is €1.09M of the €2.14M.
 
-The first two rows keep the Streamlit prototype's headline figures: Cisco €52.4M → €1,048,000, Microsoft €47.0M below the threshold. Its generator is reproduced bit for bit (`tools/legacy_seed.mjs`, checked against Python in `tests/engine.mjs`), and all 150 vendor accounts and 1,203 purchase orders are carried over, placed on the map and dated inside the agreement year.
+The first two rows keep the Streamlit prototype's headline figures: Cisco €52.4M → €1,048,000, Microsoft €47.0M below the threshold. Its generator is reproduced bit for bit (`tools/legacy_seed.mjs`, checked against Python in `tests/engine.mjs`), and all 150 vendor accounts and 1,203 purchase orders are carried over and dated inside the agreement year.
 
 > **Fictional company.** GlobalCorp SE, its company codes, vendor accounts, spend and agreements are invented. The corporate groups (Cisco, Microsoft, Broadcom, Schneider Electric, Salesforce), their LEIs and their acquisitions are real, public facts. Apex Robotics (both groups) is fictional, and so are all tax ids: they fail the real check digits. See `DATA_SOURCES.md`.
 
@@ -39,14 +39,14 @@ For clients, the point is not the fictional company but the pattern: agentic AI 
  │                                                                            │
  │   Live agent (js/agent.js)            ┐                                    │
  │   Claude tool-use loop, streamed      │   one stream of     ┌───────────┐  │
- │                                       ├─► run events ──────►│ Map, KPIs,│  │
- │   Simulation player (js/simulation.js)│   (js/events.js)    │ console,  │  │
- │   scripted replay, data/sim_runs.js   ┘                     │ options,  │  │
- │                                                             │ outbox,   │  │
- │   Tools the agent can call (js/tools.js)                    │ audit log │  │
- │    erp_*       synthetic ERP: agreements, vendor master,    └───────────┘  │
- │                ledger, register, year-end report                           │
- │    sim_rebate  deterministic rebate engine (js/rebate.js)                  │
+ │                                       ├─► run events ──────►│ Rebate    │  │
+ │   Simulation player (js/simulation.js)│   (js/events.js)    │ board,    │  │
+ │   scripted replay, data/sim_runs.js   ┘                     │ KPIs,     │  │
+ │                                                             │ console,  │  │
+ │   Tools the agent can call (js/tools.js)                    │ options,  │  │
+ │    erp_*       synthetic ERP: agreements, vendor master,    │ outbox,   │  │
+ │                ledger, register, year-end report            │ audit log │  │
+ │    sim_rebate  deterministic rebate engine (js/rebate.js)   └───────────┘  │
  │    open_*      open-data APIs ──────────────────────────┐                  │
  │    ui_*        alert, options, drafts, report: they wait for a human       │
  │                                                         │                  │
@@ -61,18 +61,18 @@ For clients, the point is not the fictional company but the pattern: agentic AI 
 - **Two producers, one interface.** The live agent and the simulation player emit the same run events, so the interface behaves the same in both modes. The mode badge, the console watermark, the evidence labels and the audit export say which mode ran.
 - **Synthetic world.** `data/world.js` holds the company, its company codes, the vendor master with group keys, the purchase orders, the subscription register (who belongs to which supplier group), the rebate agreements with their clauses, and the year-end report rules. It ships as a script (`window.WORLD = …`), so nothing is fetched.
 - **Guardrails in code, not only in the prompt.** Only the register merges accounts; similar names never do. Every option figure comes from the engine. An alert marked "verified" needs two distinct sources, two kinds of evidence gathered in the run, and for every account not yet linked a register check plus an independent confirmation (GLEIF, Wikidata or the web). Every amount in an alert, an option card, a draft or the summary must match a figure a tool returned. A decision counts only for the options on screen; drafts only follow it, and only of the kinds the approved option contains; the summary waits until every draft is decided and reports the decision that was taken. A response that breaks off is marked as discarded and counts for nothing. Each run is capped at 40 model calls and €3. Simulation scripts are checked against the same rules.
-- **Browser-enforced boundaries.** The page's Content Security Policy only lets it connect to api.anthropic.com and the three open-data APIs, and only loads the exact Leaflet files from the two CDNs. The key lives in this tab's session storage only, under the app's own name.
+- **Browser-enforced boundaries.** The page's Content Security Policy only lets it connect to api.anthropic.com and the three open-data APIs, and loads nothing else from outside: scripts, styles and fonts ship with the page. The key lives in this tab's session storage only, under the app's own name.
 
 ## Deploy in five minutes (GitHub Pages)
 
 You need a free GitHub account. The repository must be public for Pages on a free plan.
 
 1. **Use this repository** (`PROC-Rebate-Hunter`), or create a new public one and upload the *contents* of this folder (the files and folders, not the folder itself).
-   - GitHub takes **at most 100 files per web upload**. Rebate Hunter has about 130, so upload in two goes: first everything except `fonts/` and `vendor/`, then those two folders (**Add file → Upload files**).
+   - GitHub takes **at most 100 files per web upload**. Rebate Hunter has about 130, so upload in two goes: first everything except `fonts/`, then that folder (**Add file → Upload files**).
    - Include the hidden file **`.nojekyll`**. It stops GitHub from running Jekyll over the Markdown files. On a Mac, press **Cmd + Shift + .** in Finder to show hidden files. If it is missing, use **Add file → Create new file**, name it `.nojekyll`, type any text, and commit.
 2. **Turn on Pages.** Go to **Settings → Pages**. Under **Build and deployment → Source**, choose **Deploy from a branch**. Set the branch to **main** and the folder to **/ (root)**, then click **Save**.
 3. **Open the site.** After a minute or two, reload the Pages settings page. It shows **Your site is live at `https://<your-user>.github.io/PROC-Rebate-Hunter/`**. Progress is visible under the **Actions** tab ("pages build and deployment").
-4. **Check it on the presentation laptop.** Open the site and click **Diagnostics**, then **Run all tests**. Every row should pass. Map tiles may fail on some corporate networks; the offline coastline map then takes over. If an open-data row fails, the agent skips that source and says so (see Troubleshooting).
+4. **Check it on the presentation laptop.** Open the site and click **Diagnostics**, then **Run all tests**. Every row should pass. If an open-data row fails, the agent skips that source and says so (see Troubleshooting).
 
 **The Streamlit version.** Streamlit Community Cloud runs `app.py` from the branch it was set up with. This version has no `app.py`, so once it is on `main`, point the Streamlit app at the branch **`legacy-streamlit`** (app settings → branch) to keep `prockickbackhunter.streamlit.app` alive, or retire it.
 
@@ -94,10 +94,10 @@ On a first visit, a short window explains what Rebate Hunter does, how it works 
 
 ## Reading the screen
 
-- **Burgundy is you.** Approve buttons are burgundy, and so is the step of the progress rail that waits for you: *Your decision* for the options, then *Your approval* for the drafts. GlobalCorp's own company codes on the map are burgundy too.
+- **Burgundy is you.** Approve buttons are burgundy, and so is the step of the progress rail that waits for you: *Your decision* for the options, then *Your approval* for the drafts. GlobalCorp's own company codes on the rebate board are burgundy too.
 - **Violet is the AI.** The options, drafts and summary the agent wrote carry an **AI** label. Click it to see who wrote them and where the figures come from.
 - **Red, amber and green are the money:** rebate being lost, at risk, resolved or recovered. A word or an icon always says the same thing.
-- **The map** shows vendor accounts by spend, the register links from each account to its group's headquarters (dashed for acquired companies), and the billing links to GlobalCorp's company codes in Frankfurt, Birmingham and Lyon.
+- **The rebate board** sits where the Navigator shows its map. Its *group view* shows the supplier group of the agreement in focus as a hub with a ring: the accounts linked to the agreement sit on the ring (the year-end report counts them), the register members that are not linked sit outside it (the report misses them), and a look-alike the duplicate check found is held apart with a struck link, because names never merge accounts. Dot size is the closed year's spend; register links to acquired companies are dashed; GlobalCorp's company codes the group bills are listed below with their city. Above it, the **threshold race** draws one bar per agreement year against the rebate tiers: the *closed year* (the last one that ended, whose claim is due now), the *current year* (projected) and, while a look-back clause keeps it claimable, the *look-back year*. Slate is what the report counted, red what it missed, violet stripes an unverified what-if; the key sits in the race's head, the figure on the right is what is owed or open, and the chip says whether it is the report's view, the agent's first estimate or a verified count. While the agent works, the accounts it looks up pulse blue and collect a badge for each fact a lookup confirmed (Register, Ledger, GLEIF, Wikidata, Web). When the options open the drawer, the board gets short: the ring becomes a band under the race (linked accounts inside it, the others outside) and the race keeps the years with money open. When you approve an option, the accounts it links slide into the band, and glide onto the ring once the drawer is hidden; each year then says what the option claims (*option A approved*, by which way, and when the cash comes in) or, in amber, what is still lost. Nothing reads "recovered" until a supplier has paid. The *portfolio view* lists all eight agreements, next claim deadline first, each with the year that deadline is for; the Live sweep fills it in as it checks them. Click any account, the group, a company code or a year for the details.
 - **The progress rail** above the console shows the agent's plan in five steps and where it is now. **Guardrail** lines in the console show where code refused a step and why.
 
 Every colour is generated from the one burgundy and checked for contrast and colour blindness. `DESIGN.md` explains the system, which Rebate Hunter shares with its sister prototype, the Navigator.
@@ -112,7 +112,7 @@ Clicking **Start agent** first asks how the agent should run.
 | Evidence | Representative register extracts, GLEIF records and headlines, labelled "(representative)" | Live web search, live GLEIF, Wikidata and ECB rates |
 | Figures | Calculated by the rebate engine at playback | Calculated by the rebate engine |
 | Key and cost | None | Your Anthropic API key; a few tens of euro cents per run |
-| Network | None beyond map tiles; works fully offline | api.anthropic.com and the open-data APIs |
+| Network | None; works fully offline | api.anthropic.com and the open-data APIs |
 | Labelling | SIMULATION badge, hazard-tape watermark in the console, "Simulated run" in the summary, `"mode": "simulation"` in the audit export | LIVE badge, "Live agent run" in the summary, `"mode": "live"` |
 
 - **Use Live for the real demo.** If the agent finds nothing, it says so. If a tip cannot be confirmed, it labels the analysis a *what-if*.
@@ -163,7 +163,7 @@ These are estimates: Rebate Hunter's prompt and tool set are of the same size as
 | "Spend limit reached" or "no credit" | Raise the workspace's spend limit or add credit in the Console, or switch to Simulation. |
 | Banner "Web search is switched off for this API key" | An organisation admin has disabled Claude's web search. Rebate Hunter keeps going with the register, GLEIF, Wikidata and the ECB rates; preset scenarios, the Live sweep and Simulation work. |
 | The GLEIF, Wikidata or ECB row fails in Diagnostics | That provider is blocked or down from this network, or (GLEIF) does not allow calls from a web page here. Nothing to fix: the agent skips the source, says so in the console and verifies through another source or web search. |
-| Map shows only grey land and coastlines | Tile servers are blocked; the offline coastline map takes over. Markers, links and colours still work. |
+| The group is a band under the race, and the race shows fewer years | The board is short, usually because the drawer is open (or the legend you opened leaves the group no room beside it). The band keeps the picture (linked accounts inside the ring, the others outside, the same colours and details), and the race keeps the years with money open ("+1 year not shown"). Click **Hide** on the drawer, or fold the legend, to see the whole group and every year again. |
 | "The API is busy right now" | Anthropic returned overloaded or rate-limit errors after two automatic retries. Wait a minute, switch to Haiku, or run the Simulation. |
 | Run ends as **Stopped** | The model ended its turn twice without finishing; Rebate Hunter does not invent the rest. Start again, or switch to the Simulation of the same scenario. |
 | A **Guardrail** line appears in the console | Code refused a step (for example a draft quoting an amount no tool returned). The agent is told why and corrects it; the run facts count these refusals. |
@@ -188,7 +188,7 @@ Rebate Hunter is designed along the transparency and human-oversight lines of th
 
 - The **run facts** line at the end of every run states agent time (excluding time spent waiting for your decisions), tool calls by kind, visible verification steps, revisions, guardrail refusals and cost. The same facts are in the audit export.
 - `node tools/check_world.mjs` checks the synthetic world, the scenarios, the reference cases and all six simulation scripts (34 checks), holding every script to the live agent's guardrails. It needs Node.js only.
-- `node tests/engine.mjs` checks the legacy data against Python, the name-similarity port against Python's `difflib`, the rebate engine against frozen golden figures for all six scenarios, and the guardrail policy (19 tests).
+- `node tests/engine.mjs` checks the legacy data against Python, the name-similarity port against Python's `difflib`, the rebate engine against frozen golden figures for all six scenarios, the guardrail policy, and the rebate board's figures, decisions and geometry (26 tests).
 - `node tools/palette.mjs --check` checks the colour system: contrast for every text and state pairing, and that the state colours stay apart for colour-blind viewers.
 - `tests/` contains the test suites (Node.js; the browser suites need Playwright). See `tests/README.md`; GitHub Actions runs them on every push. `TECH_NOTES.md` §12 lists the acceptance items with their evidence, §11 is the verification log.
 
@@ -197,23 +197,22 @@ Rebate Hunter is designed along the transparency and human-oversight lines of th
 | Path | Contents |
 |---|---|
 | `index.html` | The single page, its security policy and the boot screen |
-| `css/` | Styles: layout, components, console, drawer, map, dialogs, fonts (shared with the Navigator except `map.css`) |
+| `css/` | Styles: layout, components, console, drawer, rebate board, dialogs, fonts (shared with the Navigator except `board.css`) |
 | `css/tokens.css`, `design/tokens.json` | The colour tokens, generated by `tools/palette.mjs`; do not edit by hand |
 | `js/` | ES modules, one responsibility each (see below) |
 | `data/world.js` | The synthetic company: company codes, vendor master, purchase orders, register, agreements, report rules (generated by `tools/build_world.mjs`) |
 | `data/scenarios.js`, `data/reference_cases.js` | The six preset scenarios and their engine reference cases |
 | `data/sim_runs.js` | The six simulation scripts |
-| `data/basemap_offline.js` | Natural Earth land polygons for the offline map (generated by `tools/build_basemap.mjs`) |
-| `fonts/`, `vendor/leaflet-1.9.4/` | Self-hosted fonts and the fallback copy of Leaflet, with licences |
-| `tools/` | World and basemap builders, the legacy seed port and its Python reference, the world check, the colour generator |
+| `fonts/` | Self-hosted fonts, with their licences |
+| `tools/` | The world builder, the legacy seed port and its Python reference, the world check, the colour generator |
 | `tests/` | Optional test suites (Node.js; browser suites need Playwright) |
 | `README.md`, `DEMO_SCRIPT.md`, `DATA_SOURCES.md`, `TECH_NOTES.md`, `DESIGN.md`, `REVIEW.md` | This guide, the stage script, every data source, verified API facts and decisions, the design system, and the Navigator review with the parity checklist |
 
-Main modules: `agent.js` (live tool-use loop), `anthropic.js` (streaming client, retries), `prompt.js` (system prompt), `tools.js` (tool definitions and executors), `guards.js` (the guardrail policy shared by the live tools and the script checker), `erp.js` (ERP queries), `rebate.js` (rebate engine), `world.js` (indexed company model), `clock.js` (today, pinned for recorded replays), `similarity.js` (Python `difflib` port), `opendata.js` (GLEIF, Wikidata, ECB), `source_health.js` (which data sources failed in this session), `figures.js` (figure audit), `drafts.js` (draft footers), `payoff.js` (option figures and decision effects), `simulation.js` (replay), `sim_vars.js` and `sim_check.js` (script placeholders and validation), `recorder.js` (Save run as simulation), `events.js` (run-event bus), `ui.js` (orchestration), `intro.js`, `progress.js` (the progress rail), `handover.js`, `ai_label.js`, `labels.js` (console label rules), `map.js`, `popovers.js`, `console.js`, `kpi.js`, `options_panel.js`, `outbox.js`, `audit.js`, `diagnostics.js`, `keystore.js` (session-only key), `cost.js`, `run_facts.js`.
+Main modules: `agent.js` (live tool-use loop), `anthropic.js` (streaming client, retries), `prompt.js` (system prompt), `tools.js` (tool definitions and executors), `guards.js` (the guardrail policy shared by the live tools and the script checker), `erp.js` (ERP queries), `rebate.js` (rebate engine), `world.js` (indexed company model), `clock.js` (today, pinned for recorded replays), `similarity.js` (Python `difflib` port), `opendata.js` (GLEIF, Wikidata, ECB), `source_health.js` (which data sources failed in this session), `figures.js` (figure audit), `drafts.js` (draft footers), `payoff.js` (option figures and decision effects), `simulation.js` (replay), `sim_vars.js` and `sim_check.js` (script placeholders and validation), `recorder.js` (Save run as simulation), `events.js` (run-event bus), `ui.js` (orchestration), `intro.js`, `progress.js` (the progress rail), `handover.js`, `ai_label.js`, `labels.js` (console label rules), `board.js` (the rebate board) with `board_data.js` (what it draws, from the engine and the ERP), `board_race.js` (threshold race), `board_group.js` (the group and its accounts), `board_band.js` (the group as a band on a short board), `board_portfolio.js` and `board_pop.js` (details popover), `popovers.js`, `console.js`, `kpi.js`, `options_panel.js`, `outbox.js`, `audit.js`, `diagnostics.js`, `keystore.js` (session-only key), `cost.js`, `run_facts.js`.
 
 ## Credits and licences
 
-Leaflet 1.9.4 (BSD-2-Clause). Map data © OpenStreetMap contributors (ODbL). Natural Earth land polygons (public domain). Fonts: Barlow, Barlow Semi Condensed and IBM Plex Mono (SIL Open Font License 1.1). Live data: GLEIF LEI data (CC0), Wikidata (CC0), euro reference rates of the European Central Bank via the Frankfurter API. Claude and its web search are services of Anthropic, billed to your own key. Details are in `DATA_SOURCES.md`.
+Fonts: Barlow, Barlow Semi Condensed and IBM Plex Mono (SIL Open Font License 1.1). Live data: GLEIF LEI data (CC0), Wikidata (CC0), euro reference rates of the European Central Bank via the Frankfurter API. Claude and its web search are services of Anthropic, billed to your own key. Details are in `DATA_SOURCES.md`.
 
 ## Author
 

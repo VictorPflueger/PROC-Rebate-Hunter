@@ -7,7 +7,7 @@
 //
 // Step types (one key per step):
 //   state, say, think, tool (erp_*, re-executed), web, open (open_* replayed), recordedTool,
-//   rebate (reference-case name or {name, spec, label}), alert, map, options, awaitOption, draft,
+//   rebate (reference-case name or {name, spec, label}), alert, board, options, awaitOption, draft,
 //   awaitActions, report, notice, end
 
 import { bus } from "./events.js";
@@ -162,9 +162,9 @@ export function createSimulationPlayer({ getSpeed }) {
       await rebate(run, step.rebate);
     } else if (step.alert) {
       await uiTool(run, "ui_report_alert", step.alert, () => bus.emit("alert", alertPayload(run, step.alert)));
-    } else if (step.map) {
-      const p = resolveObj(run, step.map);
-      await uiTool(run, "ui_mark_map", p, () => bus.emit("map_update", p), 250);
+    } else if (step.board) {
+      const p = resolveObj(run, step.board);
+      await uiTool(run, "ui_mark_board", p, () => bus.emit("board_update", p), 250);
     } else if (step.options) {
       await proposeOptions(run, step.options);
     } else if (step.awaitOption) {

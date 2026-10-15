@@ -1,5 +1,5 @@
-// Shared test harness: finds Playwright, serves the app folder over HTTP, and fulfils requests for
-// the Leaflet CDN from the bundled copy so tests never depend on the internet.
+// Shared test harness: finds Playwright and serves the app folder over HTTP. The app needs no CDN
+// and no tiles, so every external request in a test is either answered by a fixture or blocked.
 import { createRequire } from "node:module";
 import http from "node:http";
 import os from "node:os";
@@ -75,17 +75,6 @@ export async function serveStatic(root, port) {
     server.listen(port, "127.0.0.1", resolve);
   });
   return { base: `http://127.0.0.1:${port}/`, blockLocal, close: () => new Promise((r) => server.close(r)) };
-}
-
-/** Fulfils a unpkg.com Leaflet request from vendor/; returns false if the URL is not Leaflet. */
-export async function fulfilLeaflet(route, root = APP_ROOT) {
-  const u = new URL(route.request().url());
-  if (u.host !== "unpkg.com") return false;
-  const m = u.pathname.match(/^\/leaflet@1\.9\.4\/dist\/(.+)$/);
-  if (!m) return false;
-  const body = await readFile(path.join(root, "vendor/leaflet-1.9.4", m[1]));
-  await route.fulfill({ status: 200, body, headers: { "content-type": MIME[path.extname(m[1])] || "application/octet-stream", ...CORS } });
-  return true;
 }
 
 /** Console noise that blocked external requests cause in every test. */

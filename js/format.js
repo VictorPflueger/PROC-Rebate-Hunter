@@ -25,6 +25,15 @@ export function eurFull(value) {
   return `€${nf0.format(Math.round(Number(value)))}`;
 }
 
+/**
+ * A round threshold in millions, in the board's one notation for millions (€52.40M next to it):
+ * "€50M", "€2.5M", "€15M".
+ */
+export function eurMillions(eur) {
+  const m = Number(eur) / 1e6;
+  return `€${m.toLocaleString("en-GB", { maximumFractionDigits: m < 10 ? 1 : 0 })}M`;
+}
+
 /** Small euro amounts with cents, for the cost meter: €0.38. */
 export function eurCents(value) {
   return `€${nf2.format(Number(value) || 0)}`;
@@ -50,6 +59,9 @@ export function clock(ms) {
   return h ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
 }
 
+// en-GB writes September "Sept" next to the three-letter Aug and Oct; keep all months at three.
+const month3 = (text) => text.replace(/\bSept\b/, "Sep");
+
 /**
  * "Tue 21 Oct" for an ISO date or a day offset from today; "Wed 21 Oct 2027" when the date falls in
  * another year, so a running-year deadline never reads like this year's.
@@ -64,13 +76,17 @@ export function shortDate(isoOrOffset) {
     d = new Date(text.includes("T") ? text : `${text}T12:00:00`);
   }
   const year = d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {};
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", ...year });
+  return month3(d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", ...year }));
 }
 
-/** "12 Oct 2026" from an ISO date or timestamp (for recordings made on another day). */
+/**
+ * "12 Oct 2026" from an ISO date or timestamp (for recordings made on another day). A bare date is
+ * read as that day where the browser is, not as midnight UTC (which is the day before west of UTC).
+ */
 export function dateWithYear(iso) {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "an earlier date" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const text = String(iso ?? "");
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T12:00:00` : text);
+  return Number.isNaN(d.getTime()) ? "an earlier date" : month3(d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
 }
 
 /** "15:56:03" local time from an ISO timestamp. */

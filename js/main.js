@@ -1,10 +1,9 @@
-// Entry point. Checks the data files, loads Leaflet (CDN with fallbacks), then imports and starts
-// the UI. The UI is imported dynamically so that a failed module load is reported on the boot
-// screen instead of leaving a blank page. Browsers never run this module from file:// — the boot
-// screen in index.html explains that case on its own.
+// Entry point. Checks the data files, then imports and starts the UI. The UI is imported
+// dynamically so that a failed module load is reported on the boot screen instead of leaving a
+// blank page. Browsers never run this module from file:// — the boot screen in index.html explains
+// that case on its own. Nothing is loaded from a third party: every file comes from this site.
 
 import { APP } from "./config.js";
-import { loadLeaflet } from "./libs.js";
 
 const REQUIRED_DATA = [
   ["WORLD", "data/world.js"],
@@ -22,11 +21,6 @@ async function boot() {
     throw new Error(`These data files did not load: ${missing.join(", ")}. Deploy them next to index.html and reload.`);
   }
 
-  setBootStatus("Loading the map library…");
-  const leaflet = await loadLeaflet();
-  if (leaflet.ok) console.info(`[Rebate Hunter] Leaflet ${leaflet.jsSource}, styles ${leaflet.cssSource || "missing"}.`);
-  else console.warn("[Rebate Hunter] Leaflet unavailable; continuing without the map.", leaflet.attempts);
-
   setBootStatus("Starting the workspace…");
   let ui;
   try {
@@ -43,9 +37,6 @@ async function boot() {
   hideBoot();
   app.introOnFirstVisit();
 
-  if (leaflet.ok && !leaflet.cssSource) {
-    showBanner({ level: "warn", title: "Map styles missing", text: "The map library loaded but its stylesheet did not, so the map may look broken. Run Diagnostics or reload." });
-  }
   if (location.protocol === "file:") {
     showBanner({ level: "warn", title: "Opened from disk", text: "Serve this folder over http(s) for reliable behaviour, for example with python -m http.server 8000." });
   }

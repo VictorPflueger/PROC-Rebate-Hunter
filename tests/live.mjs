@@ -24,7 +24,7 @@ import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { createFakeClaude } from "./lib/fake-claude.mjs";
 import { openDataFixture as openData, LEI, WD } from "./lib/fixtures.mjs";
-import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, fulfilLeaflet, CORS, MOCK_KEY, NETWORK_NOISE, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
+import { APP_ROOT, outDir, wanted, launchBrowser, serveStatic, CORS, MOCK_KEY, NETWORK_NOISE, SKIP_INTRO, KEYS } from "./lib/harness.mjs";
 
 const ROOT = APP_ROOT;
 const OUT = await outDir("live");
@@ -59,7 +59,6 @@ async function newPage(fake, { models = "ok", failHosts = [] } = {}) {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const req = route.request();
     const u = new URL(req.url());
-    if (await fulfilLeaflet(route)) return;
     if (u.host === "api.anthropic.com") {
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { ...CORS, "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST" } });
       if (u.pathname === "/v1/models") {
@@ -218,7 +217,7 @@ if (run("full")) {
     { usage: usage(), stop: "tool_use", blocks: [
       { type: "text", text: "Option A approved. Drafting the claim letter to Cisco and the vendor-master change; each draft waits for your approval in the Outbox." },
       { type: "tool_use", id: "toolu_11", name: "ui_draft_action", input: { type: "email", recipient: "Cisco Systems, Inc., Global Rebates team", subject: "Volume rebate claim for the agreement year: €1,084,500", body: CLAIM_BODY.replace("€1,048,000", "€1,084,500") } },
-      { type: "tool_use", id: "toolu_12", name: "ui_mark_map", input: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } }
+      { type: "tool_use", id: "toolu_12", name: "ui_mark_board", input: { vendor_ids: ["10003", "10004", "10005"], link_ids: ["L-10003", "L-10004", "L-10005"], state: "resolved" } }
     ], expect: (req, { check }) => { check(req.max_tokens === 24000, `max_tokens raised after cut-off (got ${req.max_tokens})`); } },
     { usage: usage(), stop: "tool_use", blocks: [
       { type: "text", text: "Correction: the claim amount is the engine's figure, €1,048,000, not the one I typed." },
@@ -227,7 +226,7 @@ if (run("full")) {
     ], expect: (req, { check }) => {
       const r = lastResults(req);
       check(r[0]?.isError && /1,084,500/.test(r[0]?.json?.error || "") && /match no figure this text may quote, in its currency/.test(r[0]?.json?.error || ""), `figure audit refuses the typed amount (got ${String(r[0]?.raw).slice(0, 200)})`);
-      check(r[1]?.json?.ok === true && r[1]?.json?.marked === 6, `map marked (got ${String(r[1]?.raw).slice(0, 120)})`);
+      check(r[1]?.json?.ok === true && r[1]?.json?.marked === 6, `board marked (got ${String(r[1]?.raw).slice(0, 120)})`);
     } },
     { usage: usage(), stop: "tool_use", blocks: [
       { type: "tool_use", id: "toolu_15", name: "ui_await_approvals", input: {} }
@@ -271,7 +270,9 @@ if (run("full")) {
     checks.drafts = await page.$$eval(".action-card", (els) => els.length);
     checks.draftFooter = await page.$$eval(".action-body", (els) => els.length > 0 && els.every((e) => e.textContent.includes("Requires human approval before sending")));
     checks.draftTypedAmount = await page.$$eval(".action-body", (els) => els.some((e) => e.textContent.includes("1,084,500")));
-    checks.mapResolved = await page.$$eval("path.state-resolved", (els) => els.length);
+    // The board follows the approval (the constellation, or the band while the drawer is open).
+    checks.boardResolved = await page.$$eval('#board .constellation:not([hidden]) .acct[data-state="resolved"], #board .acct-band:not([hidden]) .band-acct[data-state="resolved"]', (els) => els.length);
+    checks.raceRecovered = await page.$$eval('#board .race-out[data-tone="resolved"]', (els) => els.map((e) => e.innerText.replace(/\s+/g, " ")));
     // Approve the claim letter, reject the vendor-master change.
     const approveButtons = await page.$$(".action-card .action-buttons .btn-approve");
     await approveButtons[0].click();
@@ -672,7 +673,7 @@ const EXPECT = {
     [/Guardrail: The draft was refused\. These amounts match no figure this text may quote, in its currency: €1,084,500/.test(c.figureRefusal || "") && c.draftTypedAmount === false, `the typed amount was refused in view and never reached the Outbox (got ${c.figureRefusal})`],
     [/1 guardrail refusal/.test(c.runFacts || ""), "run facts count the refusal"],
     [c.drafts === 2 && c.draftFooter, "two drafts, each with the approval footer"],
-    [c.mapResolved >= 7, `accounts, links and the group turn resolved (got ${c.mapResolved})`],
+    [c.boardResolved === 5 && (c.raceRecovered || []).some((t) => /€1,048,000 option A approved/.test(t)), `the board shows every account resolved and the year's claim approved (got ${c.boardResolved}, ${JSON.stringify(c.raceRecovered)})`],
     [c.status === "Done" && c.retryNotice, "run ends Done after a visible retry"],
     [/Run facts:/.test(c.runFacts || ""), "run facts on the last console line"],
     [(c.openData || []).filter((x) => x.startsWith("404 api.gleif.org")).length === 2, "GLEIF 404s answered for the entity without a parent"],

@@ -9,6 +9,10 @@
 //   tools      ERP duplicate check, evidence rules, figure audit, draft lines, decision payoff
 //   guards     figure scopes and formats, verified alerts, drafts per option, report outcomes,
 //              partial counts, set-off timing, model-facing names, dates with a year
+//   board      the rebate board's race rows add up to the engine's figures, the group view follows the
+//              register and the links, lookups map to accounts, a decision reads the engine's cash plan
+//              year by year (in full, in part, not at all, beyond the horizon), the portfolio shows the
+//              year due next, ui_mark_board checks its ids, and the constellation geometry holds
 // A change that moves a figure must be deliberate: update the golden value and say why in the commit.
 // Usage: node tests/engine.mjs
 import assert from "node:assert/strict";
@@ -211,10 +215,13 @@ assert.deepEqual(model.problems, []);
   const fx = decisionEffects(payload, "V1");
   assert.deepEqual(fx[0], ["kpi_update", { decided: true, option_label: "option A", residual_eur: 0, total_eur: 17100, before_eur: 2137920, first_loss_day_after: null }]);
   const all = ["10001", "10002", "10003", "10004", "10005"];
-  assert.deepEqual(fx[1], ["map_update", { vendor_ids: all, link_ids: all.map((x) => `L-${x}`), group_ids: ["G-CISCO"], state: "resolved", source: "decision" }]);
+  assert.deepEqual(fx[1], ["board_update", { vendor_ids: all, link_ids: all.map((x) => `L-${x}`), group_ids: ["G-CISCO"], state: "resolved", source: "decision", option_id: "V1", linked_vendor_ids: ["10003", "10004", "10005"] }]);
   const partial = decisionEffects(payload, "V3");
-  assert.deepEqual(partial.slice(1).map(([, p]) => [p.state, p.group_ids, p.vendor_ids]), [["at_risk", ["G-CISCO"], all]]);
-  ok("decision payoff: option A resolves every counted account and the group; option C leaves them at risk");
+  // Option C leaves next year's rebate lost: the gap accounts and the group turn amber; the accounts the
+  // report already counts keep their colour.
+  assert.deepEqual(partial.slice(1).map(([type, p]) => [type, p.state, p.group_ids, p.vendor_ids, p.option_id, p.linked_vendor_ids]), [["board_update", "at_risk", ["G-CISCO"], ["10003", "10004", "10005"], "V3", []]]);
+  assert.deepEqual(decisionEffects(payload, "baseline").map(([type]) => type), ["kpi_update"]);
+  ok("decision payoff: option A resolves every counted account and the group and names the accounts it links; option C leaves the gap accounts at risk, not the counted ones");
 }
 
 // ---- guards: the policy shared by the live tools and the script checker ------------------------------
@@ -301,6 +308,184 @@ assert.deepEqual(model.problems, []);
   assert.equal(simulateRebate(model, REF["SC-CISCO-MA"].finding).start_date, "2026-10-14");
   pinToday(null);
   ok("dates carry the year when it is not this year; today can be pinned for a recorded replay");
+}
+
+// ---- board: what the rebate board draws (js/board_data.js, the race's words, the geometry) ---------------
+{
+  const B = await mod("js/board_data.js");
+  const { quietRow, rowOutcome, periodText, tierMoney, rowPriority } = await mod("js/board_race.js");
+  const { constellationGeometry, ringLabelClear, labelsClear, separateLabels } = await mod("js/board_group.js");
+  const { decisionYears, acceptedYears } = await mod("js/board.js");
+  const { prefixLabels } = await mod("js/board_band.js");
+  const SCEN = sandbox.window.SCENARIOS;
+  const sum = (xs) => xs.reduce((s, x) => s + x, 0);
+
+  // Every race row adds up: the segments are the accounts, the bar is their sum, a tier is reached
+  // exactly when the bar passes it; the report's view shows only what it counted.
+  let rowsChecked = 0;
+  for (const sc of SCEN) {
+    const aid = sc.agreement_id;
+    for (const spec of [null, REF[sc.id].hypothesis, REF[sc.id].finding]) {
+      const view = B.raceView(model, aid, spec ? compactForModel(simulateRebate(model, spec)) : null);
+      assert.equal(view.mode, spec ? "result" : "report", `${sc.id} mode`);
+      const top = Math.max(...view.agreement.tiers.map((t) => t.from_eur));
+      assert.ok(view.scale_max >= top * 1.25 - 1, `${sc.id} scale above the top tier`);
+      for (const row of view.rows) {
+        rowsChecked += 1;
+        assert.ok(Math.abs(sum(row.segments.map((s) => s.eur)) - row.total_eur) <= row.segments.length, `${sc.id} ${row.year}: segments add up to the bar`);
+        assert.ok(view.scale_max >= row.total_eur * 1.12 - 1, `${sc.id} ${row.year}: room past the bar for its total`);
+        for (const t of row.tiers) assert.equal(t.reached, row.total_eur + 1e-6 >= t.from_eur, `${sc.id} ${row.year} tier ${t.from_eur}`);
+        if (!spec) assert.ok(row.segments.every((s) => s.kind === "counted"), `${sc.id} ${row.year}: the report's view shows only what it counted`);
+      }
+    }
+  }
+  assert.ok(rowsChecked >= SCEN.length * 3, `at least one row per view (rows checked: ${rowsChecked})`);
+
+  // Cisco: the report counted the two linked accounts; the agreement counts the three acquisitions too.
+  const cisco = B.raceView(model, "RA-CISCO", compactForModel(simulateRebate(model, REF["SC-CISCO-MA"].finding)));
+  const ay = cisco.rows.find((r) => r.year === "AY");
+  assert.deepEqual(ay.segments.map((s) => [s.vendor_id, s.kind]), [["10001", "counted"], ["10002", "counted"], ["10003", "missed"], ["10004", "missed"], ["10005", "missed"]]);
+  assert.deepEqual([ay.total_eur, ay.tier_pct, ay.out.open_eur, ay.out.status], [52400000, 2, 1048000, "open"]);
+  // Before the agent counts: the report's closed year, and the current year it has not run yet.
+  const ciscoReport = B.raceView(model, "RA-CISCO");
+  assert.deepEqual(ciscoReport.rows.map((r) => [r.year, r.label]), [["AY", "Closed year"], ["CY", "Current year"]]);
+  assert.deepEqual([rowOutcome(ciscoReport.rows[1]).big, ciscoReport.rows[1].out.pending], ["Not run yet", true]);
+  assert.match(rowOutcome(ciscoReport.rows[0]).small[1], /^window closes /);
+  // Salesforce: a linked account in pounds is still missed (the report counts euro invoices only).
+  const crm = B.raceView(model, "RA-CRM", compactForModel(simulateRebate(model, REF["SC-CRM-FX"].finding)));
+  const gbp = crm.rows.find((r) => r.year === "AY").segments.find((s) => s.currency === "GBP" && s.status === "linked");
+  assert.equal(gbp?.kind, "missed");
+  assert.match(gbp.reason, /GBP invoices: not counted by the report/);
+  // Apex: the first estimate is a what-if; its look-alike is drawn as an assumed account.
+  const apexHyp = B.raceView(model, "RA-APEX", compactForModel(simulateRebate(model, REF["SC-APEX-NAME"].hypothesis)));
+  assert.equal(apexHyp.basis, "what_if");
+  assert.ok(apexHyp.rows.some((r) => r.segments.some((s) => s.kind === "assumed" && s.vendor_id === "40002")));
+  // Microsoft: the look-back year is open; the years below the threshold are quiet.
+  const msft = B.raceView(model, "RA-MSFT", compactForModel(simulateRebate(model, REF["SC-MSFT-PY"].finding)));
+  assert.deepEqual(msft.rows.map((r) => [r.year, r.out.status, quietRow(r)]), [["PY", "open", false], ["AY", "not_owed", true], ["CY", "not_owed", true]]);
+  assert.deepEqual(B.raceView(model, "RA-MSFT").rows.map((r) => [r.year, r.label]), [["PY", "Look-back year"], ["AY", "Closed year"], ["CY", "Current year"]]);
+  const py = msft.rows[0];
+  assert.equal(rowOutcome(py).big, "€1,020,000");
+  assert.equal(rowOutcome(msft.rows[1]).big, "No rebate");
+  assert.match(rowOutcome(msft.rows[1]).small[0], /^below the 2 % tier at €50M$/);
+  // A short board keeps the years with money open first, the nearest deadline first.
+  assert.deepEqual(rowPriority(msft.rows).map((r) => r.year), ["PY", "AY", "CY"]);
+  assert.deepEqual(rowPriority(cisco.rows).map((r) => r.year), ["AY", "CY"]);
+  assert.match(periodText("2025-08-18 to 2026-08-17"), /^18 Aug 2025 – 17 Aug 2026$/);
+  assert.deepEqual([tierMoney(50e6), tierMoney(2.5e6), tierMoney(15e6)], ["€50M", "€2.5M", "€15M"]);
+  assert.equal(cisco.agreement.tiers_text, "2 % from €50M");
+  ok(`board race: ${rowsChecked} rows add up, tiers and kinds follow the engine; Cisco, Salesforce, Apex and Microsoft as the story says`);
+
+  // A decision reads the engine's cash plan of the approved option, year by year. Approved is not
+  // booked: the words say "approved" and when the cash comes in, never "recovered".
+  const crmRes = compactForModel(simulateRebate(model, REF["SC-CRM-FX"].finding));
+  const crmB = decisionYears(crmRes, crmRes.variants.find((v) => v.variant_id === "V2"), "option B");
+  assert.deepEqual([...crmB].map(([y, d]) => [y, d.kind, d.recovered_eur, d.lost_eur]), [["AY", "full", 740130, 0], ["CY", "partial", 714483, 62654]]);
+  assert.equal(crmB.get("CY").lost_eur, crmRes.variants.find((v) => v.variant_id === "V2").rebate_still_lost_eur, "the year's loss is the option's 'still lost'");
+  const crmCy = crm.rows.find((r) => r.year === "CY");
+  const partialOut = rowOutcome(crmCy, { decision: crmB.get("CY") });
+  assert.deepEqual([partialOut.tone, partialOut.big, partialOut.small[0], partialOut.small[1]], ["at_risk", "€62,654", "still lost with option B", "€714,483 by year-end claim"]);
+  const crmAyOut = rowOutcome(crm.rows.find((r) => r.year === "AY"), { decision: crmB.get("AY") });
+  assert.deepEqual([crmAyOut.tone, crmAyOut.small[0]], ["resolved", "option B approved"]);
+  assert.match(crmAyOut.small[1], /^credit note · cash in /);
+  assert.ok(![partialOut, crmAyOut].some((o) => o.small.some((t) => /recovered/.test(t))), "no 'recovered' before the cash");
+  const crmC = decisionYears(crmRes, crmRes.variants.find((v) => v.variant_id === "V3"), "option C");
+  assert.deepEqual([crmC.get("CY").kind, rowOutcome(crmCy, { decision: crmC.get("CY") }).small[0]], ["lost", "still lost with option C"]);
+  // A year whose deadline lies beyond the horizon is not costed, so it stays undecided.
+  const ciscoShort = compactForModel(simulateRebate(model, { ...REF["SC-CISCO-MA"].finding, horizon_days: 200 }));
+  assert.deepEqual([...decisionYears(ciscoShort, ciscoShort.variants[0], "option A").keys()], ["AY"]);
+  assert.deepEqual([...acceptedYears(ciscoShort).keys()], ["AY"]);
+  const accepted = rowOutcome(py, { decision: acceptedYears(compactForModel(simulateRebate(model, REF["SC-MSFT-PY"].finding))).get("PY") });
+  assert.deepEqual([accepted.tone, accepted.small[0]], ["affected", "loss accepted: do nothing"]);
+  // Two ways in for one year (a set-off and a credit note for the rest) are both named.
+  const twoWays = decisionYears({ horizon_days: 400, years: [{ year: "AY", open_eur: 1000, claim_deadline_day: 20 }] },
+    { cash_in: [{ year: "AY", amount_eur: 600, day: 12, via: "set-off" }, { year: "AY", amount_eur: 400, day: 50, via: "credit note" }] }, "option B").get("AY");
+  assert.deepEqual([twoWays.kind, twoWays.via, twoWays.cash_day], ["full", ["set-off", "credit note"], 50]);
+  ok("board decisions: in full, in part (Salesforce option B), not at all, beyond the horizon, accepted; 'approved', not 'recovered'");
+
+  // The portfolio shows the year whose claim is due next: Microsoft's look-back year, not the closed year.
+  const pf = B.portfolioView(model, new Map([["RA-MSFT", compactForModel(simulateRebate(model, REF["SC-MSFT-PY"].finding))]]));
+  const pfMsft = pf.find((p) => p.id === "RA-MSFT");
+  assert.deepEqual([pfMsft.row.year, pfMsft.next_deadline.year, rowOutcome(pfMsft.row).big], ["PY", "PY", "€1,020,000"]);
+  assert.deepEqual([pf.find((p) => p.id === "RA-CISCO").row.year, pf.find((p) => p.id === "RA-CISCO").next_deadline.year], ["AY", "AY"]);
+  ok("board portfolio: the year due next, with its own figures (the look-back year where it is open)");
+
+  // The group view: the register and the agreement's links decide who sits where.
+  const gv = B.groupView(model, "RA-CISCO");
+  assert.equal(gv.hub.label, model.groups.get("G-CISCO").name);
+  assert.deepEqual(gv.accounts.map((a) => [a.id, a.linked]), [["10001", true], ["10002", true], ["10003", false], ["10004", false], ["10005", false]]);
+  assert.ok(gv.company_codes.length > 0 && gv.company_codes.every((c) => model.companyCodes.has(c)));
+  assert.deepEqual({ ...gv.codes_info["CC-2000"] }, { name: model.companyCodes.get("CC-2000").name, city: "Birmingham" });
+  // The band's names when it is short of width: the words that tell the accounts apart.
+  assert.deepEqual([...prefixLabels(gv.accounts.map((a) => a.label))], ["Cisco Systems", "Cisco Technology", "Meraki", "Acacia", "Splunk"]);
+  assert.deepEqual([...prefixLabels(["Schneider Electric GmbH", "Schneider Electric Ltd", "AVEVA Solutions"])], ["Schneider Electric GmbH", "Schneider Electric Ltd", "AVEVA"]);
+  const omni = B.groupView(model, "RA-OMNI");
+  assert.equal(omni.group, null);
+  assert.deepEqual(omni.accounts.map((a) => a.id), [...model.agreements.get("RA-OMNI").linked]); // (the world comes from another realm)
+  const schn = B.groupView(model, "RA-SCHN").accounts.filter((a) => a.name.startsWith("Schneider Electric"));
+  assert.ok(schn.length >= 2 && new Set(schn.map((a) => a.label)).size === schn.length, "two Schneider accounts keep distinct labels");
+  assert.deepEqual(["Meraki Cloud Networks Ltd.", "Cisco Technology Inc.", "VMware International Unlimited Co.", "salesforce.com Germany GmbH"].map(B.shortName), ["Meraki Cloud Networks", "Cisco Technology", "VMware International", "salesforce.com Germany"]);
+  ok("board group view: hub, ring and outside follow the register and the links; labels stay distinct");
+
+  // What a call is about and what its result established.
+  assert.equal(B.callAgreement(model, "erp_get_rebate_report", { agreement_id: "RA-MSFT" }), "RA-MSFT");
+  assert.equal(B.callAgreement(model, "erp_family_tree", { vendor_id: "10003" }), "RA-CISCO");
+  assert.deepEqual(B.callAccounts(model, "erp_family_tree", { group_id: "G-CISCO" }), ["10001", "10002", "10003", "10004", "10005"]);
+  assert.deepEqual(B.callAccounts(model, "erp_get_spend", { vendor_ids: ["20001", "nope"] }), ["20001"]);
+  assert.deepEqual(B.resultChecks(model, "erp_family_tree", { vendor_id: "10001" }, ERP.erp_family_tree(model, { vendor_id: "10001" })).map((c) => c.kind), Array(5).fill("register"));
+  const splunkLei = model.registerByVendor.get("10005").lei;
+  const ciscoLei = model.groups.get("G-CISCO").lei;
+  assert.deepEqual(B.resultChecks(model, "open_gleif_parent", {}, { entity: { lei: splunkLei }, ultimate_parent: { lei: ciscoLei } }), [{ vendor_id: "10005", kind: "gleif" }]);
+  assert.deepEqual(B.resultChecks(model, "open_gleif_parent", {}, { entity: { lei: splunkLei }, ultimate_parent: { lei: "529900T8BM49AURSDO55" } }), []);
+  const dup = B.lookalikes(model, ERP.erp_find_duplicates(model, { vendor_id: "40001" }));
+  assert.deepEqual(dup.map((d) => [d.probe, d.vendor_id, Math.round(d.similarity_pct)]), [["40001", "40002", 67]]);
+  ok("board follows the calls: agreements and accounts of a lookup, register, GLEIF and look-alike checks");
+
+  // ui_mark_board takes only ids of each list's own kind and reports the rest, an unknown agreement too.
+  const { createToolbox } = await mod("js/tools.js");
+  const emitted = [];
+  const toolbox = createToolbox({ model, emit: (type, payload) => emitted.push([type, payload]), waitUntil: async () => null, takeOptionDecision: () => null, drafts: new Map(), onPhase: () => {} });
+  const marked = (await toolbox.execute("ui_mark_board", { vendor_ids: ["10003", "nope", "L-10004", "G-CISCO"], link_ids: ["L-10003", "10004"], group_ids: ["G-CISCO", "10003"], company_code_ids: ["CC-2000", "G-CISCO"], agreement_ids: ["RA-CISCO", "G-CISCO"], agreement_id: "RA-NOPE", state: "at_risk" })).result;
+  assert.deepEqual([marked.marked, [...marked.ignored_unknown_ids].sort()], [5, ["10003", "10004", "G-CISCO", "L-10004", "RA-NOPE", "nope"]]);
+  assert.deepEqual({ ...emitted[0][1] }, { vendor_ids: ["10003"], link_ids: ["L-10003"], group_ids: ["G-CISCO"], company_code_ids: ["CC-2000"], agreement_ids: ["RA-CISCO"], state: "at_risk" });
+  ok("ui_mark_board marks only ids of each list's kind and reports the rest");
+
+  // Geometry: on the ring at its radius, outside further out, inside the area, nothing invented.
+  for (const [width, height, narrow] of [[1150, 560, false], [760, 300, true], [760, 150, true], [1900, 900, false]]) {
+    const g = constellationGeometry({ width, height, narrow, ring: ["a", "b", "c"], outer: ["d", "e", "f"], moved: ["g"], satellites: [{ vendor_id: "s", probe: "d" }] });
+    assert.deepEqual([...g.pos.keys()].sort(), ["a", "b", "c", "d", "e", "f", "g", "s"], `${width}×${height}: one place per account`);
+    assert.equal(g.small, height < 230);
+    assert.ok(g.r >= 34 && g.r <= 190);
+    for (const [id, p] of g.pos) {
+      const d = Math.hypot(p.x - g.hub.x, p.y - g.hub.y);
+      if (p.place === "ring") assert.ok(Math.abs(d - g.r) < 0.5, `${id} on the ring`);
+      if (p.place === "outer") assert.ok(d > g.r + 40, `${id} outside the ring`);
+      assert.ok(p.x >= 0 && p.x <= Math.max(200, width) && p.y >= 0 && p.y <= Math.max(100, height), `${width}×${height}: ${id} inside the area`);
+    }
+  }
+  // Every account's label fits across the area, whichever side it takes: the accounts a decision
+  // links (right arc), and a look-alike, whose label takes the side away from the hub.
+  const reachOk = (g, width, insetLeft = 0) => [...g.pos.values()].every((p) => (p.side === "left" ? p.x - (23 + 12 + g.labelRoom) >= insetLeft + 12 - 0.5 : p.x + 23 + 12 + g.labelRoom <= width - 12 + 0.5));
+  const linked = constellationGeometry({ width: 1150, height: 560, ring: ["a", "b"], moved: ["c", "d", "e"] });
+  assert.ok(reachOk(linked, 1150) && linked.labelRoom === 236, "labels of linked accounts fit on the right, wide");
+  const apexLike = constellationGeometry({ width: 960, height: 420, ring: ["a"], satellites: [{ vendor_id: "s", probe: "a" }] });
+  assert.ok(apexLike.fits && reachOk(apexLike, 960) && apexLike.pos.get("s").side === "left", "a look-alike's label keeps inside the area, away from the hub");
+  // Beside the open legend the labels may go slim, the ring smaller; where even that leaves no ring
+  // of RING_MIN, the legend is squeezed (it folds, or the board shows the band).
+  const beside = constellationGeometry({ width: 1150, height: 560, ring: ["a", "b"], outer: ["c", "d", "e"], insetLeft: 284 });
+  assert.ok(beside.fits && !beside.squeezed && reachOk(beside, 1150, 284), "the group fits beside the legend at 1150 px");
+  assert.equal(constellationGeometry({ width: 818, height: 400, ring: ["a", "b"], outer: ["c", "d", "e"], insetLeft: 284 }).squeezed, true);
+  // Too short for a ring of RING_MIN: it does not fit (the board shows the band).
+  assert.equal(constellationGeometry({ width: 1150, height: 120, ring: ["a", "b"], outer: ["c", "d", "e"] }).fits, false);
+  // Labels moved apart are clear; three tall labels in a short area are not (the board then shows the band).
+  const stack = [{ id: "x", x0: 0, x1: 100, y: 50, h: 30 }, { id: "y", x0: 0, x1: 100, y: 52, h: 30 }];
+  assert.equal(labelsClear(stack, separateLabels(stack, [], { top: 0, bottom: 200 }), [], { bottom: 200, width: 300 }), true);
+  const tall = [0, 1, 2].map((i) => ({ id: `t${i}`, x0: 0, x1: 100, y: 40, h: 45 }));
+  assert.equal(labelsClear(tall, separateLabels(tall, [], { top: 0, bottom: 100 }), [], { bottom: 100, width: 300 }), false);
+  const hub = { x: 100, y: 100 };
+  assert.equal(ringLabelClear({ hub, lr: 60, textLen: 120, pos: new Map([["a", { x: 100, y: 48, place: "ring" }]]) }), false);
+  assert.equal(ringLabelClear({ hub, lr: 60, textLen: 120, pos: new Map([["a", { x: 48, y: 100, place: "ring" }], ["b", { x: 152, y: 100, place: "ring" }], ["c", { x: 100, y: 20, place: "outer" }]]) }), true);
+  ok("board geometry: ring at its radius, outside further out, everything and every label inside the area, the legend beside or squeezed, labels clear or reported; the ring label steps aside");
 }
 
 console.log(`\nAll ${passed} engine tests passed.`);
