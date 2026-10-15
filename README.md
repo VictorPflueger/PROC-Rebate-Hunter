@@ -204,6 +204,7 @@ Rebate Hunter is designed along the transparency and human-oversight lines of th
 | `data/scenarios.js`, `data/reference_cases.js` | The six preset scenarios and their engine reference cases |
 | `data/sim_runs.js` | The six simulation scripts |
 | `fonts/` | Self-hosted fonts, with their licences |
+| `images/author.jpg` | The author's photo for the credit in the drawer bar |
 | `tools/` | The world builder, the legacy seed port and its Python reference, the world check, the colour generator |
 | `tests/` | Optional test suites (Node.js; browser suites need Playwright) |
 | `README.md`, `DEMO_SCRIPT.md`, `DATA_SOURCES.md`, `TECH_NOTES.md`, `DESIGN.md`, `REVIEW.md` | This guide, the stage script, every data source, verified API facts and decisions, the design system, and the Navigator review with the parity checklist |

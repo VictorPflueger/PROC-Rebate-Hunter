@@ -111,7 +111,7 @@ No runtime library at all since 7.1.0 (Leaflet left with the map, D-R43). Markdo
 | `connect-src` | `api.anthropic.com`, `api.gleif.org`, `www.wikidata.org`, `api.frankfurter.dev` | The only `fetch` targets; no other host can receive the API key or any data. Diagnostics' privacy row fails if the policy allows anything else |
 | `script-src` | `'self'` | App modules and data files only; no CDN file can run (the Navigator allows two CDNs wholesale, W19) |
 | `style-src` | `'self'` | Dynamic styles go through the CSSOM, so no `'unsafe-inline'` |
-| `img-src` | `'self'`, `data:` | The favicon and inline images; no tiles |
+| `img-src` | `'self'`, `data:` | The favicon, the author's photo in the drawer bar and inline images; no tiles |
 | `font-src` | `'self'` | Self-hosted fonts |
 | `object-src`, `base-uri`, `form-action` | none | Hardening |
 
@@ -194,6 +194,7 @@ Rebate Hunter inherits the Navigator's decisions D1–D45 (Navigator `TECH_NOTES
 | D-R53 | The portfolio shows, for each agreement, the year whose claim is due next, with that year's decision, and names it under the deadline; amber within 30 days (`UI.urgentDays`, as the race) | Microsoft's money is in the look-back year; the closed year's "No rebate" hid €1.02M (review B3, A3) |
 | D-R54 | `ui_mark_board` takes only ids of each list's own kind (`vendor_ids` vendor accounts only) and reports the rest in `ignored_unknown_ids`, an unknown `agreement_id` included | A wrong id never colours the board silently (review, suspected item and re-check) |
 | D-R55 | In a Live sweep the race chip follows the run's KPI stage, so the sweep's first calculation reads *First estimate* | Kept (review B7): the board and the KPI tiles name the same stage for the same result. Revisit if the sweep's tiles change |
+| D-R56 | The drawer bar carries the author's credit in its middle: "Built by", his photo (`images/author.jpg`, 96 px, served from this site), his name linking to his website and a LinkedIn link, both opening in a new tab. Ink like the tabs; only the photo's thin ring is burgundy, the colour of the person. The tab list is its own element inside the bar (it used to hold the note and the toggle too), and the bar is a three-column grid that centres the credit; below 1181 px it drops "Built by", below 1101 px it moves to a second row of the bar. Same code as the Navigator (D46) | Requested 15 Oct 2026: the prototypes link back to their author. A new tab leaves a running demo in place, and the credit never covers the tabs or the note (`tests/layout.mjs`, five viewports) |
 
 ## 9. Live-agent guardrails
 
