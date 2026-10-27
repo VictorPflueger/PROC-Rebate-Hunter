@@ -1,8 +1,10 @@
 // The constellation: a supplier group as the hub, the ring of accounts linked to the agreement (the
 // ones the year-end report counts), the register members outside the ring that it misses, and any
 // look-alike the duplicate check found, held apart with a struck link. After a decision the accounts
-// an option links glide onto the ring. Lines are SVG; the hub, the accounts and the company codes are
-// buttons, so every entity can be reached by keyboard and opens its details.
+// an option links glide onto the ring. Everything is drawn in Vici's hexagons: the ring is a
+// flat-top hexagon with the accounts on its edges, the hub and the accounts are hexagon cells. Lines
+// and shapes are SVG; the hub, the accounts and the company codes are buttons, so every entity can be
+// reached by keyboard and opens its details.
 
 import { h, prefersReducedMotion } from "./dom.js";
 import { icon } from "./icons.js";
@@ -17,6 +19,45 @@ const svg = (tag, attrs = {}) => {
 };
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const RAD = Math.PI / 180;
+const SQ3 = Math.sqrt(3);
+// Half the width of a flat-top hexagon of height 1 (its width is 2/√3 = 1.1547 times its height).
+const HALF_W = 1 / SQ3;
+
+/** The distance from the centre of a flat-top hexagon of circumradius R to its edge at angle a (radians). */
+export function hexRadius(a, R) {
+  const step = Math.PI / 3;
+  const off = (((a - Math.PI / 6) % step) + step) % step; // from the nearest edge's normal (30° + k·60°)
+  return (R * SQ3) / 2 / Math.cos(off > step / 2 ? off - step : off);
+}
+
+/** The corners of a flat-top hexagon of circumradius R, as an SVG polygon's points. */
+export function hexPoints(cx, cy, R) {
+  return Array.from({ length: 6 }, (_, k) => `${(cx + R * Math.cos(k * 60 * RAD)).toFixed(2)},${(cy + R * Math.sin(k * 60 * RAD)).toFixed(2)}`).join(" ");
+}
+
+/**
+ * A hexagon cell drawn in SVG (the hub, an account, a legend swatch): a halo and a gap ring behind,
+ * the ring that pulses while the agent checks the account, the body (its outline solid, dashed or
+ * dotted from CSS), and the state's mark inside. Sized by CSS; strokes keep their width in pixels at
+ * any size.
+ */
+export function hexCell(cls) {
+  const shape = svg("svg", { class: `hex-cell ${cls}`, viewBox: "-1.15 -1 2.3 2", "aria-hidden": "true", focusable: "false" });
+  const pts = hexPoints(0, 0, 1.15);
+  shape.append(
+    svg("polygon", { class: "hex-halo", points: pts }),
+    svg("polygon", { class: "hex-gap", points: pts }),
+    svg("polygon", { class: "hex-pulse", points: pts }),
+    svg("polygon", { class: "hex-body", points: pts }),
+    // The state's own mark: a cross where the rebate is missed, a bar and dot where it is at risk,
+    // a tick where it is approved or settled (CSS shows the one that applies).
+    svg("path", { class: "hex-mark mark-affected", d: "M-0.36 -0.36 L0.36 0.36 M0.36 -0.36 L-0.36 0.36" }),
+    svg("path", { class: "hex-mark mark-at_risk", d: "M0 -0.52 V0.06" }),
+    svg("polygon", { class: "hex-dot mark-at_risk", points: hexPoints(0, 0.36, 0.13) }),
+    svg("path", { class: "hex-mark mark-resolved", d: "M-0.42 0.02 L-0.12 0.32 L0.44 -0.3" })
+  );
+  return shape;
+}
 // The band at the bottom kept free for the folded legend (left) and the company codes (right).
 export const BOTTOM_BAND = 62;
 
@@ -24,6 +65,8 @@ export const BOTTOM_BAND = 62;
 // and the smallest ring that still reads as a ring around its hub (a 44 px hub and the accounts' dots).
 const LABEL_ROOMS = [236, 172];
 export const RING_MIN = 48;
+// Half the width of the largest account's hexagon (46 px high).
+export const DOT_REACH = Math.ceil(46 * HALF_W);
 
 /**
  * Where everything sits, for a constellation area of width × height whose left side the expanded
@@ -45,7 +88,8 @@ export function constellationGeometry({ width, height, ring = [], outer = [], mo
   const small = availH < 230;
   const capH = small ? 10 : 58;   // the group's name and LEI under the ring (a short area relies on the board's caption)
   const topPad = small ? 12 : 26; // the ring label above the ring
-  const rCap = clamp(Math.min(availH * 0.34, availW * 0.17, (availH - topPad - capH) / 2), 34, 190);
+  // The ring is a flat-top hexagon of circumradius r: r to either side, r·√3/2 up and down.
+  const rCap = clamp(Math.min(availH * 0.34, availW * 0.17, (availH - topPad - capH) / SQ3), 34, 190);
   const left = insetLeft + 12;
   const right = availW - 12;
   const extraWide = clamp(availW * 0.2, 84, 230);
@@ -54,7 +98,7 @@ export function constellationGeometry({ width, height, ring = [], outer = [], mo
   const spread = (n, step, cap) => (n <= 0 ? [] : n === 1 ? [0] : Array.from({ length: n }, (_, i) => -Math.min(cap, step * (n - 1)) + (2 * Math.min(cap, step * (n - 1)) * i) / (n - 1)));
 
   /** The hub's height for a ring of radius r: room above for the ring's label, below for the caption. */
-  const hubY = (r) => clamp(availH * 0.48, r + topPad, availH - r - capH);
+  const hubY = (r) => clamp(availH * 0.48, (r * SQ3) / 2 + topPad, availH - (r * SQ3) / 2 - capH);
 
   /** Places everything relative to the hub, and measures how far left and right it reaches. */
   function arrange(r, extra, labelRoom) {
@@ -67,15 +111,17 @@ export function constellationGeometry({ width, height, ring = [], outer = [], mo
       const xx = Math.sign(x || 1) * Math.max(Math.abs(x), Math.sqrt(Math.max(0, min * min - yy * yy)));
       return { x: xx, y: yy };
     };
-    // Ring, left arc (around 180°), labels to the left.
+    // Ring, left side (around 180°, on the hexagon's edges), labels to the left.
     spread(ring.length, 32, 62).forEach((d, i) => {
       const a = (180 + d) * RAD;
-      rel.set(ring[i], { x: r * Math.cos(a), y: r * Math.sin(a), side: "left", place: "ring" });
+      const k = hexRadius(a, r);
+      rel.set(ring[i], { x: k * Math.cos(a), y: k * Math.sin(a), side: "left", place: "ring" });
     });
-    // Linked by a decision: right arc of the ring, labels to the right.
+    // Linked by a decision: right side of the ring, labels to the right.
     spread(moved.length, 30, 58).forEach((d, i) => {
       const a = d * RAD;
-      rel.set(moved[i], { x: r * Math.cos(a), y: r * Math.sin(a), side: "right", place: "ring" });
+      const k = hexRadius(a, r);
+      rel.set(moved[i], { x: k * Math.cos(a), y: k * Math.sin(a), side: "right", place: "ring" });
     });
     // Outside: right of the ring, on a wider ellipse, never closer to the hub than r + 44.
     spread(outer.length, 30, 64).forEach((d, i) => {
@@ -92,14 +138,14 @@ export function constellationGeometry({ width, height, ring = [], outer = [], mo
       const q = keep(dist * Math.cos(a), dist * Math.sin(a), 24, r + 44);
       rel.set(s.vendor_id, { ...q, side: q.x < 0 ? "left" : "right", place: "satellite" });
     }
-    // The reach: the ring, the caption under it, and every account with its label (a dot of up to
-    // 46 px, 12 px to its label).
-    const reach = 23 + 12 + labelRoom;
+    // The reach: the ring, the caption under it, and every account with its label (a hexagon of up
+    // to 46 px high and 53 px wide, 12 px to its label).
+    const reach = DOT_REACH + 12 + labelRoom;
     let minX = -Math.max(r + 8, small ? 0 : captionW / 2);
     let maxX = -minX;
     for (const p of rel.values()) {
-      minX = Math.min(minX, p.side === "left" ? p.x - reach : p.x - 24);
-      maxX = Math.max(maxX, p.side === "right" ? p.x + reach : p.x + 24);
+      minX = Math.min(minX, p.side === "left" ? p.x - reach : p.x - DOT_REACH - 1);
+      maxX = Math.max(maxX, p.side === "right" ? p.x + reach : p.x + DOT_REACH + 1);
     }
     return { rel, minX, maxX };
   }
@@ -192,33 +238,35 @@ export function labelsClear(items, dy, obstacles = [], { bottom = Infinity, widt
 }
 
 /**
- * Whether the ring's label ("Linked to RA-…", centred on the top of the ring at radius lr, textLen
- * long) stays clear of the accounts on the ring. dotOf(id) is an account's diameter.
+ * Whether the ring's label ("Linked to RA-…", textLen wide and textH high, centred above the ring's
+ * top edge at height top) stays clear of the accounts on the ring. dotOf(id) is an account's height.
  */
-export function ringLabelClear({ hub, lr, textLen, pos, dotOf = () => 24 }) {
-  const half = textLen / 2 / lr;
+export function ringLabelClear({ hub, top, textLen, textH = 18, pos, dotOf = () => 24 }) {
+  const x0 = hub.x - textLen / 2;
+  const x1 = hub.x + textLen / 2;
+  const y0 = top - 6 - textH;
   for (const [id, p] of pos) {
     if (p.place !== "ring") continue;
-    const a = Math.atan2(p.y - hub.y, p.x - hub.x) + Math.PI / 2; // 0 at the top of the ring
-    const off = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
-    if (off < half + (dotOf(id) / 2 + 6) / lr) return false;
+    const d = dotOf(id);
+    const half = d * HALF_W + 6;
+    if (p.x + half > x0 && p.x - half < x1 && p.y + d / 2 + 6 > y0 && p.y - d / 2 - 6 < top) return false;
   }
   return true;
 }
 
 const STATE_WORDS = { affected: "rebate missed", at_risk: "at risk", resolved: "approved or settled" };
+// Each state's own icon beside its words (Vici's state icons), so no state is told by colour alone.
+export const STATE_ICONS = { affected: "error", at_risk: "warning", resolved: "success" };
 
 export function createConstellation({ onAccount, onHub, onCode }) {
   const lines = svg("g", { class: "links" });
-  const ringZone = svg("circle", { class: "ring-zone" });
-  const ringPath = svg("path", { id: "rh-ring-arc", fill: "none", stroke: "none" });
-  const ringText = svg("text", { class: "ring-label" });
-  const ringTextPath = svg("textPath", { href: "#rh-ring-arc", startOffset: "50%", "text-anchor": "middle" });
-  ringText.appendChild(ringTextPath);
+  const ringZone = svg("polygon", { class: "ring-zone" });
+  // The ring's label runs straight along its flat top edge.
+  const ringText = svg("text", { class: "ring-label", "text-anchor": "middle" });
   const looks = svg("g", { class: "lookalikes" });
   const canvas = svg("svg", { "aria-hidden": "true", focusable: "false" });
-  canvas.append(ringZone, lines, ringPath, ringText, looks);
-  const hubBtn = h("button", { class: "hub-btn", type: "button" }, icon("hub", 28));
+  canvas.append(ringZone, lines, ringText, looks);
+  const hubBtn = h("button", { class: "hub-btn", type: "button" }, hexCell("hub-shape"), icon("hub", 28));
   const hubLabel = h("span", { class: "hub-label", "aria-hidden": "true" }, h("strong", {}, ""), h("span", {}, ""));
   const hub = h("div", { class: "hub" }, hubBtn, hubLabel);
   const nodes = h("div", { class: "nodes" });
@@ -250,23 +298,24 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     looks.replaceChildren();
     hubLabel.firstChild.textContent = view.hub.label;
     hubLabel.lastChild.textContent = view.group ? (view.hub.lei ? `LEI ${view.hub.lei}` : "no LEI on record") : "no supplier group in the register";
-    ringTextPath.textContent = `Linked to ${view.agreement.id}`;
+    ringText.textContent = `Linked to ${view.agreement.id}`;
     geom = null;
   }
 
   function nodeFor(id, place) {
     let r = reg.get(id);
     if (r) return r;
-    const hit = h("button", { class: "acct-hit", type: "button" }, h("span", { class: "acct-dot" }));
+    const hit = h("button", { class: "acct-hit", type: "button" }, hexCell("acct-dot"));
     const name = h("strong", {}, "");
     const meta = h("span", { class: "meta" }, "");
-    const reason = h("span", { class: "reason" }, "");
+    const reasonText = h("span", {}, "");
+    const reason = h("span", { class: "reason" }, reasonText);
     const tags = h("span", { class: "tags" });
     const label = h("span", { class: "acct-label", "aria-hidden": "true" }, name, meta, reason, tags);
     const wrap = h("div", { class: "acct", dataset: { id, place } }, hit, label);
     hit.addEventListener("click", () => onAccount?.(id, hit));
     nodes.appendChild(wrap);
-    r = { wrap, hit, label, name, meta, reason, tags, line: null, place, placedAs: null, gliding: false, x: null, y: null, base: 20, d: 20 };
+    r = { wrap, hit, label, name, meta, reason, reasonText, tags, line: null, place, placedAs: null, gliding: false, x: null, y: null, base: 20, d: 20 };
     reg.set(id, r);
     if (!prefersReducedMotion()) {
       wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: "ease-out" });
@@ -324,13 +373,18 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     view.company_codes.forEach((id, i) => {
       let b = codeBtns.get(id);
       if (!b) {
-        b = h("button", { class: "code-btn", type: "button", dataset: { code: id } }, icon("building", 18), h("span", {}, ""));
+        b = h("button", { class: "code-btn", type: "button", dataset: { code: id } }, icon("building", 18), h("span", {}, ""), h("span", { class: "code-state" }));
         b.addEventListener("click", () => onCode?.(id, b));
         codeBtns.set(id, b);
       }
       const cc = view.codes_info?.[id];
-      b.lastChild.textContent = `${id.replace("CC-", "")}${cc?.city ? ` ${cc.city}` : ""}`;
+      b.children[1].textContent = `${id.replace("CC-", "")}${cc?.city ? ` ${cc.city}` : ""}`;
       const st = stateOf(`code:${id}`);
+      // GlobalCorp's own sites stay in ink; a state shows beside the name, as its icon and a ring.
+      if ((b.dataset.state || "neutral") !== (st || "neutral") || !b.lastChild.dataset.drawn) {
+        b.lastChild.replaceChildren(...(STATE_ICONS[st] ? [icon(STATE_ICONS[st], 18)] : []));
+        b.lastChild.dataset.drawn = "true";
+      }
       if (st && st !== "neutral") b.dataset.state = st; else delete b.dataset.state;
       b.setAttribute("aria-label", `Company code ${id}${cc?.name ? `, ${cc.name}` : ""}${cc?.city ? ` in ${cc.city}` : ""}${st && st !== "neutral" ? `; state: ${STATE_WORDS[st]}` : ""}. Opens its details.`);
       if (codes.children[i + 1] !== b) codes.insertBefore(b, codes.children[i + 1] || null);
@@ -387,7 +441,11 @@ export function createConstellation({ onAccount, onHub, onCode }) {
       reason = `Not linked to ${view.agreement.id}`;
       tone = "neutral";
     }
-    r.reason.textContent = reason;
+    r.reasonText.textContent = reason;
+    if ((r.reason.dataset.tone || "affected") !== tone || !r.reason.dataset.drawn) {
+      r.reason.replaceChildren(...(STATE_ICONS[tone] ? [icon(STATE_ICONS[tone], 16)] : []), r.reasonText);
+      r.reason.dataset.drawn = "true";
+    }
     r.reason.dataset.tone = tone === "affected" ? "" : tone;
     if (!r.reason.dataset.tone) delete r.reason.dataset.tone;
     const kinds = checksOf(id);
@@ -447,9 +505,7 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     // 44 px target); a small ring drops the halos.
     hub.style.setProperty("--hub-d", `${Math.round(clamp(geom.r * 0.5, 44, 72))}px`);
     el.dataset.halo = String(geom.r >= 60);
-    ringZone.setAttribute("cx", geom.hub.x);
-    ringZone.setAttribute("cy", geom.hub.y);
-    ringZone.setAttribute("r", geom.r);
+    ringZone.setAttribute("points", hexPoints(geom.hub.x, geom.hub.y, geom.r));
     // Accounts shrink with a small ring, so they never cover the hub (hit areas stay ≥ 44 px).
     const k = clamp(geom.r / 110, 0.6, 1.15);
     for (const r of reg.values()) {
@@ -457,10 +513,11 @@ export function createConstellation({ onAccount, onHub, onCode }) {
       r.wrap.style.setProperty("--d", `${r.d}px`);
       r.wrap.style.setProperty("--hit-d", `${Math.max(44, r.d + 10)}px`);
     }
-    const lr = geom.r + 9;
-    ringPath.setAttribute("d", `M ${geom.hub.x - lr} ${geom.hub.y} A ${lr} ${lr} 0 0 1 ${geom.hub.x + lr} ${geom.hub.y}`);
-    const textLen = ringTextPath.textContent.length * 9.4 + 8;
-    ringText.style.display = geom.r >= 56 && !geom.small && ringLabelClear({ hub: geom.hub, lr, textLen, pos: geom.pos, dotOf: (id) => reg.get(id)?.d || 24 }) ? "" : "none";
+    const top = geom.hub.y - (geom.r * SQ3) / 2;
+    ringText.setAttribute("x", geom.hub.x);
+    ringText.setAttribute("y", top - 9);
+    const textLen = ringText.textContent.length * 9.4 + 8;
+    ringText.style.display = geom.r >= 56 && !geom.small && ringLabelClear({ hub: geom.hub, top, textLen, pos: geom.pos, dotOf: (id) => reg.get(id)?.d || 24 }) ? "" : "none";
     const targets = new Map();
     for (const [id, r] of reg) {
       const p = geom.pos.get(id);
@@ -525,19 +582,21 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     const obstacles = [];
     for (const [id, p] of targets) {
       const r = reg.get(id);
-      obstacles.push({ x0: p.x - r.d / 2, x1: p.x + r.d / 2, y0: p.y - r.d / 2, y1: p.y + r.d / 2, owner: id });
+      const half = r.d * HALF_W;
+      obstacles.push({ x0: p.x - half, x1: p.x + half, y0: p.y - r.d / 2, y1: p.y + r.d / 2, owner: id });
       const w = r.label.offsetWidth;
       const hgt = r.label.offsetHeight;
       if (!w || !hgt) continue;
-      const near = r.d / 2 + 12;
+      const near = half + 12;
       items.push(p.side === "left"
         ? { id, side: "left", x0: p.x - near - w, x1: p.x - near, y: p.y, h: hgt }
         : { id, side: "right", x0: p.x + near, x1: p.x + near + w, y: p.y, h: hgt });
     }
-    const hb = hubBtn.offsetWidth / 2 || 32;
-    obstacles.push({ x0: geom.hub.x - hb, x1: geom.hub.x + hb, y0: geom.hub.y - hb, y1: geom.hub.y + hb });
+    const hw = hubBtn.offsetWidth / 2 || 37;
+    const hh = hubBtn.offsetHeight / 2 || 32;
+    obstacles.push({ x0: geom.hub.x - hw, x1: geom.hub.x + hw, y0: geom.hub.y - hh, y1: geom.hub.y + hh });
     if (hubLabel.offsetWidth) {
-      const top = geom.hub.y + geom.r + (hub.dataset.size === "mid" ? 6 : 12);
+      const top = geom.hub.y + (geom.r * SQ3) / 2 + (hub.dataset.size === "mid" ? 6 : 12);
       obstacles.push({ x0: geom.hub.x - hubLabel.offsetWidth / 2, x1: geom.hub.x + hubLabel.offsetWidth / 2, y0: top, y1: top + hubLabel.offsetHeight });
     }
     if (codes.offsetWidth) {
@@ -589,7 +648,7 @@ export function createConstellation({ onAccount, onHub, onCode }) {
       text.textContent = `${Math.round(r.similarity || 0)} % alike · no merge`;
       looks.append(
         svg("line", { class: "lookalike-link", x1: p.x, y1: p.y, x2: r.x, y2: r.y }),
-        svg("circle", { class: "lookalike-x", cx: mx, cy: my, r: 9 }),
+        svg("polygon", { class: "lookalike-x", points: hexPoints(mx, my, 10) }),
         svg("path", { class: "lookalike-x-mark", d: `M ${mx - 4} ${my - 4} L ${mx + 4} ${my + 4} M ${mx + 4} ${my - 4} L ${mx - 4} ${my + 4}` }),
         text
       );

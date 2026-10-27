@@ -65,8 +65,9 @@ function boardColours(page) {
     const STATES = [["affected", "--vc-danger-solid"], ["at_risk", "--vc-warning-text"], ["resolved", "--vc-success-solid"]];
     for (const [st, name] of STATES) {
       const want = rgb(token(name));
-      const dots = [...document.querySelectorAll(`#board .constellation:not([hidden]) .acct[data-state="${st}"] .acct-dot`)].map((e) => [e, getComputedStyle(e).borderTopColor]);
-      const pills = [...document.querySelectorAll(`#board .acct-band:not([hidden]) .band-acct[data-state="${st}"] .band-dot`)].map((e) => [e, getComputedStyle(e).borderTopColor]);
+      // The accounts are hexagon cells in SVG: their outline is the body's stroke.
+      const dots = [...document.querySelectorAll(`#board .constellation:not([hidden]) .acct[data-state="${st}"] .acct-dot .hex-body`)].map((e) => [e, getComputedStyle(e).stroke]);
+      const pills = [...document.querySelectorAll(`#board .acct-band:not([hidden]) .band-acct[data-state="${st}"] .band-dot .hex-body`)].map((e) => [e, getComputedStyle(e).stroke]);
       const links = [...document.querySelectorAll(`#board .constellation:not([hidden]) .reg-link[data-state="${st}"]`)].map((e) => [e, getComputedStyle(e).stroke]);
       out.counted[st] = dots.length + pills.length + links.length;
       for (const [e, got] of [...dots, ...pills, ...links]) if (got !== want) out.mismatches.push(`${st} ${e.className.baseVal ?? e.className} ${got} ≠ ${want}`);
@@ -81,7 +82,7 @@ function boardColours(page) {
     const rows = status ? [...status.querySelectorAll(".legend-row")] : [];
     for (const [label, name] of [["Rebate missed", "--vc-danger-solid"], ["At risk", "--vc-warning-text"], ["Approved or settled", "--vc-success-solid"]]) {
       const row = rows.find((r) => r.textContent.trim().startsWith(label));
-      const got = row ? getComputedStyle(row.querySelector(".legend-swatch-dot")).borderTopColor : "missing";
+      const got = row ? getComputedStyle(row.querySelector(".legend-swatch .hex-body")).stroke : "missing";
       if (got !== rgb(token(name))) out.mismatches.push(`legend "${label}" ${got} ≠ ${rgb(token(name))}`);
     }
     // The race's key, in the card's head, uses the segments' own colours.

@@ -1,7 +1,7 @@
 // The ring band: the group view when the board is short (the drawer open on a decision, a small
-// screen). The constellation's ring becomes a rounded band beside the group: the accounts linked to
+// screen). The constellation's ring becomes a hex capsule beside the group: the accounts linked to
 // the agreement sit inside it (the year-end report counts them), the register members that are not
-// linked outside it, each with its dot (solid when linked, dashed when not, whatever its state
+// linked outside it, each with its hexagon (solid when linked, dashed when not, whatever its state
 // colour), its name and its spend in the year the race above leads with (the closed year, or the
 // look-back year where that is the year with money open). When an approved option links accounts,
 // they slide into the band, as they glide onto the ring in the full view. When the band is too
@@ -12,6 +12,7 @@
 import { h, prefersReducedMotion } from "./dom.js";
 import { icon } from "./icons.js";
 import { eurCompact } from "./format.js";
+import { hexCell } from "./board_group.js";
 
 const STATE_WORDS = { affected: "rebate missed", at_risk: "at risk", resolved: "approved or settled" };
 const YEAR_WORDS = { AY: "closed year", PY: "look-back year" };
@@ -31,7 +32,7 @@ export function prefixLabels(labels) {
 
 export function createBand({ onAccount, onHub }) {
   const hubName = h("span", { class: "band-hub-name" }, "");
-  const hub = h("button", { class: "band-hub", type: "button" }, h("span", { class: "band-hub-dot" }, icon("hub", 18)), hubName);
+  const hub = h("button", { class: "band-hub", type: "button" }, h("span", { class: "band-hub-dot" }, hexCell("band-hub-shape"), icon("hub", 18)), hubName);
   const ringFull = h("span", { class: "rl-full" }, "");
   const ringLabel = h("span", { class: "band-ring-label", "aria-hidden": "true" }, ringFull, h("span", { class: "rl-short" }, "Linked"));
   const inside = h("div", { class: "band-ring", role: "group" }, ringLabel);
@@ -44,7 +45,7 @@ export function createBand({ onAccount, onHub }) {
   function item(id) {
     let it = items.get(id);
     if (it) return it;
-    const dot = h("span", { class: "band-dot", "aria-hidden": "true" });
+    const dot = hexCell("band-dot");
     const name = h("span", { class: "bn-full" }, "");
     const short = h("span", { class: "bn-short" }, "");
     const meta = h("span", { class: "band-meta" }, "");

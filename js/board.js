@@ -19,7 +19,7 @@ import { h, withTooltip, setTooltip } from "./dom.js";
 import { icon } from "./icons.js";
 import { groupView, raceView, portfolioView, accountView, callAccounts, callAgreement, resultChecks, lookalikes, agreementOfGroup, agreementOfVendor } from "./board_data.js";
 import { createRace, rowPriority, quietRow, tierMoney, BASIS_CHIP, TAG_TONE } from "./board_race.js";
-import { createConstellation, constellationGeometry, BOTTOM_BAND } from "./board_group.js";
+import { createConstellation, constellationGeometry, hexCell, BOTTOM_BAND } from "./board_group.js";
 import { createBand } from "./board_band.js";
 import { createPortfolio } from "./board_portfolio.js";
 import { createPopover } from "./board_pop.js";
@@ -661,8 +661,8 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
       });
       return btn;
     };
-    // The swatches take their colours from css/board.css (data-kind), as the board's own marks do.
-    const dot = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-dot", dataset: { kind } }), label);
+    // The swatches are the board's own hexagons, coloured and marked by css/board.css (data-kind).
+    const dot = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch", dataset: { kind } }, hexCell("legend-hex")), label);
     const line = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-line", dataset: { kind } }), label);
     const el = h("section", { class: "legend", "aria-label": "Board legend", dataset: { collapsed: "false" } });
     const collapseBtn = h("button", { class: "vc-icon-button", type: "button", "aria-expanded": "true" }, icon("chevronDown", 18));
