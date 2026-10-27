@@ -74,20 +74,20 @@ if (wanted("sim")) {
     await page.waitForTimeout(2500);
     checks.badgeSim = (await page.textContent("#mode-badge")).trim();
     checks.watermarkVisible = await page.isVisible(".sim-watermark");
-    await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 180000 });
+    await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 180000 });
     await page.waitForTimeout(800);
     await shot(page, "03-options.png");
     checks.optionCards = await page.$$eval(".option-card", (els) => els.map((e) => `${e.dataset.kind}:${e.querySelector(".option-total .value")?.textContent}`));
     checks.approveButtonsVisibleWithoutScroll = await page.evaluate(() => {
       const body = document.querySelector(".drawer-body").getBoundingClientRect();
-      return [...document.querySelectorAll(".option-actions .btn")].every((b) => { const r = b.getBoundingClientRect(); return r.top >= body.top && r.bottom <= body.bottom; });
+      return [...document.querySelectorAll(".option-actions button")].every((b) => { const r = b.getBoundingClientRect(); return r.top >= body.top && r.bottom <= body.bottom; });
     });
     checks.legendInsideBoard = await page.evaluate(() => {
       const m = document.querySelector("#board").getBoundingClientRect();
       const l = document.querySelector("#board .legend").getBoundingClientRect();
       return getComputedStyle(document.querySelector("#board .legend")).display === "none" || (l.top >= m.top - 1 && l.bottom <= m.bottom + 1);
     });
-    await page.click('.option-card[data-recommended="true"] .btn-approve');
+    await page.click('.option-card[data-recommended="true"] [data-action="approve"]');
     // The board follows the decision: option A links Meraki, Acacia and Splunk, which join the ring
     // (or, while the open drawer leaves the board short, slide into the band's ring), and the closed
     // year shows the claim approved (not "recovered": nothing is booked yet).
@@ -229,11 +229,11 @@ if (wanted("diag")) {
     await page.waitForFunction(() => document.querySelectorAll('.diag-status[data-s="pass"]').length >= 2, null, { timeout: 10000 });
     await shot(page, "12-diagnostics.png");
     checks.localRows = await page.$$eval(".diag-table tbody tr", (rows) => rows.map((r) => `${r.querySelector("strong")?.textContent}:${r.querySelector(".diag-status")?.dataset.s}`).filter((x) => /World|privacy/.test(x)));
-    checks.footer = await page.$eval(".modal-foot .left", (e) => e.textContent.trim());
+    checks.footer = await page.$eval(".vc-dialog__footer .dialog-note", (e) => e.textContent.trim());
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
     await page.click("#dd-scenario");
-    await page.click('.menu-item[data-id="custom"]');
+    await page.click('.vc-menu__item[data-id="custom"]');
     await page.waitForSelector("#custom-scenario");
     await page.fill("#custom-scenario", "Slack invoices us from Dublin on its own account. Does it count towards the Salesforce agreement?");
     await page.click('button:has-text("Use this scenario")');
@@ -272,7 +272,7 @@ if (wanted("intro")) {
     await page.waitForTimeout(200);
     checks.focus = await page.evaluate(() => document.activeElement?.textContent?.trim());
     await shot(page, "20-intro.png");
-    await page.click('.intro-modal .modal-foot button:has-text("Close")');
+    await page.click('.intro-modal .vc-dialog__footer button:has-text("Close")');
     await page.waitForSelector(".intro-modal", { state: "detached", timeout: 3000 });
     checks.flag = await page.evaluate((k) => localStorage.getItem(k), KEYS.introSeen);
     await page.reload();
@@ -285,7 +285,7 @@ if (wanted("intro")) {
     await page.keyboard.press("Escape");
     await page.waitForSelector(".intro-modal", { state: "detached", timeout: 3000 });
     await page.click("#btn-about");
-    await page.click('.intro-modal .modal-foot button:has-text("Start agent")');
+    await page.click('.intro-modal .vc-dialog__footer button:has-text("Start agent")');
     await page.waitForSelector(".mode-card", { timeout: 5000 });
     checks.startOpensModeChoice = await page.$$eval(".mode-card", (els) => els.map((e) => e.dataset.mode).join(","));
     // During a run the window only explains: Close is its only button and the run carries on.
@@ -293,7 +293,7 @@ if (wanted("intro")) {
     await page.waitForTimeout(1200);
     await page.click("#btn-about");
     await page.waitForSelector(".intro-modal", { timeout: 3000 });
-    checks.duringRunButtons = await page.$$eval(".intro-modal .modal-foot button", (els) => els.map((e) => e.textContent.trim()));
+    checks.duringRunButtons = await page.$$eval(".intro-modal .vc-dialog__footer button", (els) => els.map((e) => e.textContent.trim()));
     await page.keyboard.press("Escape");
     checks.statusAfterClose = (await page.textContent(".status-pill .text")).trim();
     await page.click("#btn-abort");
@@ -322,11 +322,11 @@ if (wanted("board")) {
   try {
     await boot(page);
     await page.click("#dd-scenario");
-    await page.click('.menu-item[data-id="SC-MSFT-PY"]');
+    await page.click('.vc-menu__item[data-id="SC-MSFT-PY"]');
     await page.waitForTimeout(800);
     checks.caption = (await page.textContent("#board .board-caption strong")).trim();
     checks.raceYears = await page.$$eval("#board .race-row", (els) => els.map((e) => e.dataset.year).join(","));
-    checks.reportChip = (await page.textContent("#board .race-head .chip")).trim();
+    checks.reportChip = (await page.textContent("#board .race-head .vc-tag")).trim();
     checks.accounts = await page.$$eval("#board .acct", (els) => els.map((e) => `${e.dataset.id}:${e.dataset.place}`).sort().join(","));
     await shot(page, "14-board-group.png");
     // Keyboard: the hub opens the register entry; Escape closes it and gives the focus back.

@@ -391,7 +391,7 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     r.reason.dataset.tone = tone === "affected" ? "" : tone;
     if (!r.reason.dataset.tone) delete r.reason.dataset.tone;
     const kinds = checksOf(id);
-    r.tags.replaceChildren(...kinds.slice(0, 3).map((k) => h("span", { class: "check-tag" }, `${CHECK_LABEL[k] || k} ✓`)), ...(kinds.length > 3 ? [h("span", { class: "check-tag" }, `+${kinds.length - 3}`)] : []));
+    r.tags.replaceChildren(...kinds.slice(0, 3).map((k) => h("span", { class: "vc-tag vc-tag--info check-tag" }, `${CHECK_LABEL[k] || k} ✓`)), ...(kinds.length > 3 ? [h("span", { class: "vc-tag vc-tag--info check-tag" }, `+${kinds.length - 3}`)] : []));
     r.hit.setAttribute("aria-label", [
       `${a.name || a.label}, vendor account ${id}`,
       money,

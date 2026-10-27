@@ -15,10 +15,10 @@
 
 import { bus } from "./events.js";
 import { getModel } from "./world.js";
-import { h } from "./dom.js";
+import { h, withTooltip, setTooltip } from "./dom.js";
 import { icon } from "./icons.js";
 import { groupView, raceView, portfolioView, accountView, callAccounts, callAgreement, resultChecks, lookalikes, agreementOfGroup, agreementOfVendor } from "./board_data.js";
-import { createRace, rowPriority, quietRow, tierMoney, BASIS_CHIP } from "./board_race.js";
+import { createRace, rowPriority, quietRow, tierMoney, BASIS_CHIP, TAG_TONE } from "./board_race.js";
 import { createConstellation, constellationGeometry, BOTTOM_BAND } from "./board_group.js";
 import { createBand } from "./board_band.js";
 import { createPortfolio } from "./board_portfolio.js";
@@ -99,13 +99,15 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
 
   // ---- chrome: caption, view buttons, views, legend, popover ----------------------------------------
   const capTitle = h("strong", {}, "");
-  const capChip = h("span", { class: "chip cap-chip", hidden: true }, "");
+  const capChip = h("span", { class: "vc-tag cap-chip", hidden: true }, "");
   const capMore = h("span", { class: "cap-more", hidden: true }, "");
   const capSub = h("span", { class: "cap-sub" }, "");
   const caption = h("div", { class: "board-caption" }, h("div", { class: "cap-line" }, capTitle, capChip, capMore), capSub);
-  const btnGroup = h("button", { class: "btn btn-sm", type: "button", "aria-pressed": "true", title: "The supplier group of the agreement in focus" }, icon("target", 18), h("span", { class: "btn-text" }, "Group view"));
-  const btnPortfolio = h("button", { class: "btn btn-sm", type: "button", "aria-pressed": "false", title: "Every rebate agreement, next claim deadline first" }, icon("list", 18), h("span", { class: "btn-text" }, "Portfolio view"));
-  const tools = h("div", { class: "board-tools" }, btnGroup, btnPortfolio);
+  // The view buttons: a group of toggle buttons the board owns (aria-pressed), drawn like Vici's
+  // segmented control; on a narrow board they keep their icons only, and their tooltips name them then.
+  const btnGroup = h("button", { type: "button", "aria-pressed": "true", title: "The supplier group of the agreement in focus" }, icon("target", 18), h("span", { class: "btn-text" }, "Group view"));
+  const btnPortfolio = h("button", { type: "button", "aria-pressed": "false", title: "Every rebate agreement, next claim deadline first" }, icon("list", 18), h("span", { class: "btn-text" }, "Portfolio view"));
+  const tools = h("div", { class: "board-tools segmented" }, withTooltip(btnGroup, "Group view", { below: true }), withTooltip(btnPortfolio, "Portfolio view", { below: true }));
   btnGroup.addEventListener("click", () => showGroup());
   btnPortfolio.addEventListener("click", () => showPortfolio());
 
@@ -431,7 +433,7 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
     const [label, tone] = chipKey ? BASIS_CHIP[chipKey] || BASIS_CHIP.report : [null, null];
     capChip.hidden = !label;
     capChip.textContent = label || "";
-    if (tone) capChip.dataset.tone = tone; else delete capChip.dataset.tone;
+    capChip.className = ["vc-tag", TAG_TONE[tone] || "", "cap-chip"].filter(Boolean).join(" ");
     setCaptionMore(0);
   }
 
@@ -663,13 +665,13 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
     const dot = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-dot", dataset: { kind } }), label);
     const line = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-line", dataset: { kind } }), label);
     const el = h("section", { class: "legend", "aria-label": "Board legend", dataset: { collapsed: "false" } });
-    const collapseBtn = h("button", { class: "btn btn-ghost btn-icon", type: "button", "aria-label": "Collapse legend", "aria-expanded": "true", title: "Collapse legend" }, icon("chevronDown", 18));
+    const collapseBtn = h("button", { class: "vc-icon-button", type: "button", "aria-expanded": "true" }, icon("chevronDown", 18));
+    const collapseTip = withTooltip(collapseBtn, "Collapse legend");
     const setCollapsed = (collapsed) => {
       el.dataset.collapsed = String(collapsed);
       collapseBtn.replaceChildren(icon(collapsed ? "chevronUp" : "chevronDown", 18));
       collapseBtn.setAttribute("aria-expanded", String(!collapsed));
-      collapseBtn.setAttribute("aria-label", collapsed ? "Expand legend" : "Collapse legend");
-      collapseBtn.title = collapsed ? "Expand legend" : "Collapse legend";
+      setTooltip(collapseBtn, collapsed ? "Expand legend" : "Collapse legend");
       render();
     };
     let userChoice = false;
@@ -680,7 +682,7 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
       if (collapse !== (el.dataset.collapsed === "true")) setCollapsed(collapse);
     };
     el.append(
-      h("div", { class: "legend-head" }, h("strong", {}, "Legend"), collapseBtn),
+      h("div", { class: "legend-head" }, h("strong", {}, "Legend"), collapseTip),
       h("div", { class: "legend-body" },
         h("div", { class: "legend-toggles", role: "group", "aria-label": "Show on the board", dataset: { only: "group" } },
           toggle("Register links", "showLinks", "The register's links from the group to its accounts"),
