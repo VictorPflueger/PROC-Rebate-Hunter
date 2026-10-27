@@ -659,8 +659,9 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
       });
       return btn;
     };
-    const dot = (cls, fill, stroke, label) => h("div", { class: "legend-row" }, h("span", { class: `legend-swatch-dot ${cls}`, style: { background: fill, borderColor: stroke } }), label);
-    const line = (cls, label) => h("div", { class: "legend-row" }, h("span", { class: `legend-swatch-line ${cls}`, style: { borderTopColor: cls === "dotted" ? "var(--slate-9)" : "var(--network)" } }), label);
+    // The swatches take their colours from css/board.css (data-kind), as the board's own marks do.
+    const dot = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-dot", dataset: { kind } }), label);
+    const line = (kind, label) => h("div", { class: "legend-row" }, h("span", { class: "legend-swatch-line", dataset: { kind } }), label);
     const el = h("section", { class: "legend", "aria-label": "Board legend", dataset: { collapsed: "false" } });
     const collapseBtn = h("button", { class: "btn btn-ghost btn-icon", type: "button", "aria-label": "Collapse legend", "aria-expanded": "true", title: "Collapse legend" }, icon("chevronDown", 18));
     const setCollapsed = (collapsed) => {
@@ -686,16 +687,16 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
           toggle("Labels", "showLabels", "The accounts' names and what the report does with them"),
           toggle("Current year", "showCY", "The current agreement year in the race, projected")),
         h("div", { class: "legend-group", dataset: { only: "group" } }, h("h4", {}, "Accounts (size: closed-year spend)"),
-          dot("", "var(--slate-4)", "var(--slate-9)", "Linked: the report counts it"),
-          dot("dashed", "var(--paper)", "var(--slate-9)", "Not linked: the report misses it"),
-          line("", "Register link"),
-          line("dashed", "Register link, acquired"),
-          line("dotted", "Look-alike: no merge")),
+          dot("linked", "Linked: the report counts it"),
+          dot("unlinked", "Not linked: the report misses it"),
+          line("link", "Register link"),
+          line("acquired", "Register link, acquired"),
+          line("lookalike", "Look-alike: no merge")),
         h("div", { class: "legend-group" }, h("h4", {}, "Status"),
-          dot("", "var(--affected-fill)", "var(--affected)", "Rebate missed"),
-          dot("", "var(--at-risk-fill)", "var(--at-risk)", "At risk"),
-          dot("", "var(--resolved-fill)", "var(--resolved)", "Approved or settled"),
-          dot("pulse", "", "", "Being checked by the agent"))
+          dot("affected", "Rebate missed"),
+          dot("at_risk", "At risk"),
+          dot("resolved", "Approved or settled"),
+          dot("checking", "Being checked by the agent"))
       )
     );
     return el;

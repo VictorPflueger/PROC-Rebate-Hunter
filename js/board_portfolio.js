@@ -70,6 +70,8 @@ export function createPortfolio({ onRow }) {
       if (st && st !== "neutral") it.btn.dataset.state = st; else delete it.btn.dataset.state;
       it.btn.dataset.checking = String(checking.has(p.id));
       it.btn.dataset.focus = String(p.id === focus);
+      // The agreement in focus is the current one (its frame is ink: css/board.css).
+      if (p.id === focus) it.btn.setAttribute("aria-current", "true"); else it.btn.removeAttribute("aria-current");
       it.name.textContent = p.short;
       it.sub.textContent = `${p.id} · ${p.tiers_text}`;
       it.checked.hidden = !checked.has(p.id);

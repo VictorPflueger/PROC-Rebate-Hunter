@@ -16,7 +16,7 @@ const { base: BASE, close } = await serveStatic(APP_ROOT, 8770);
 const browser = await launchBrowser();
 const results = [];
 
-// Severity 1.0 (dichromacy). The same matrices as the palette check in tools/palette.mjs.
+// Severity 1.0 (dichromacy). The same matrices as the colour check in tests/tokens.mjs.
 const CVD = {
   "Normal vision": null,
   Protanopia: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
@@ -61,7 +61,8 @@ function boardColours(page) {
     const token = (n) => cs.getPropertyValue(n).trim().toLowerCase();
     const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`; };
     const out = { mismatches: [], counted: {} };
-    const STATES = [["affected", "--affected"], ["at_risk", "--at-risk"], ["resolved", "--resolved"]];
+    // The state tokens (Vici): danger, warning and success, as lines and outlines.
+    const STATES = [["affected", "--vc-danger-solid"], ["at_risk", "--vc-warning-text"], ["resolved", "--vc-success-solid"]];
     for (const [st, name] of STATES) {
       const want = rgb(token(name));
       const dots = [...document.querySelectorAll(`#board .constellation:not([hidden]) .acct[data-state="${st}"] .acct-dot`)].map((e) => [e, getComputedStyle(e).borderTopColor]);
@@ -71,21 +72,21 @@ function boardColours(page) {
       for (const [e, got] of [...dots, ...pills, ...links]) if (got !== want) out.mismatches.push(`${st} ${e.className.baseVal ?? e.className} ${got} ≠ ${want}`);
     }
     const missed = [...document.querySelectorAll('#board .race-row:not([data-quiet="true"]) .race-seg[data-kind="missed"]:not([data-state])')];
-    for (const e of missed) if (getComputedStyle(e).backgroundColor !== rgb(token("--affected"))) out.mismatches.push(`missed segment ${getComputedStyle(e).backgroundColor}`);
+    for (const e of missed) if (getComputedStyle(e).backgroundColor !== rgb(token("--vc-danger-solid"))) out.mismatches.push(`missed segment ${getComputedStyle(e).backgroundColor}`);
     const recovered = [...document.querySelectorAll('#board .race-seg[data-state="resolved"]')];
-    for (const e of recovered) if (getComputedStyle(e).backgroundColor !== rgb(token("--resolved"))) out.mismatches.push(`recovered segment ${getComputedStyle(e).backgroundColor}`);
+    for (const e of recovered) if (getComputedStyle(e).backgroundColor !== rgb(token("--vc-success-solid"))) out.mismatches.push(`recovered segment ${getComputedStyle(e).backgroundColor}`);
     out.counted.affected += missed.length;
     out.counted.recoveredSegments = recovered.length;
     const status = [...document.querySelectorAll("#board .legend-group")].find((g) => /Status/.test(g.textContent));
     const rows = status ? [...status.querySelectorAll(".legend-row")] : [];
-    for (const [label, name] of [["Rebate missed", "--affected"], ["At risk", "--at-risk"], ["Approved or settled", "--resolved"]]) {
+    for (const [label, name] of [["Rebate missed", "--vc-danger-solid"], ["At risk", "--vc-warning-text"], ["Approved or settled", "--vc-success-solid"]]) {
       const row = rows.find((r) => r.textContent.trim().startsWith(label));
       const got = row ? getComputedStyle(row.querySelector(".legend-swatch-dot")).borderTopColor : "missing";
       if (got !== rgb(token(name))) out.mismatches.push(`legend "${label}" ${got} ≠ ${rgb(token(name))}`);
     }
     // The race's key, in the card's head, uses the segments' own colours.
     const bar = (k) => { const i = document.querySelector(`#board .race-key .rk[data-k="${k}"] > i`); return i ? getComputedStyle(i).backgroundColor : "missing"; };
-    if (bar("missed") !== rgb(token("--affected"))) out.mismatches.push(`race key "missed" ${bar("missed")}`);
+    if (bar("missed") !== rgb(token("--vc-danger-solid"))) out.mismatches.push(`race key "missed" ${bar("missed")}`);
     const counted = document.querySelector('#board .race-seg[data-kind="counted"]');
     if (counted && bar("counted") !== getComputedStyle(counted).backgroundColor) out.mismatches.push(`race key "counted" ${bar("counted")} ≠ segment ${getComputedStyle(counted).backgroundColor}`);
     return out;

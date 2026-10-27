@@ -891,7 +891,7 @@ Status: **Same** — identical code or behaviour (shared stylesheets and shell m
 
 ### Shared shell (identical apart from names and comments)
 
-`js/events.js` (contract comment adapted), `js/anthropic.js`, `js/sse.js`, `js/cost.js`, `js/keystore.js`, `js/dom.js`, `js/md.js`, `js/modal.js`, `js/handover.js`, `js/progress.js`, `js/drawer.js`, and `css/` except `board.css`. Keep these in step in both repositories (`DESIGN.md` §9). `js/libs.js` (the Leaflet loader) left the Rebate Hunter with the map in 7.1.0; the Navigator keeps it.
+`vici/` (Victor's design system Vici, copied unchanged: `vici/README.md`), `js/events.js` (contract comment adapted), `js/anthropic.js`, `js/sse.js`, `js/cost.js`, `js/keystore.js`, `js/dom.js`, `js/md.js`, `js/modal.js`, `js/handover.js`, `js/progress.js`, `js/drawer.js`, `css/` except `board.css`, and the colour test `tests/tokens.mjs` (what only this prototype draws is in `tests/lib/prototype.mjs`). Keep these in step in all four prototypes (`DESIGN.md` §9). `css/fonts.css` and `css/tokens.css` left with the move to Vici, which brings its own fonts and tokens. `js/libs.js` (the Leaflet loader) left the Rebate Hunter with the map in 7.1.0; the Navigator keeps it.
 
 ### Tests, tooling and documents
 

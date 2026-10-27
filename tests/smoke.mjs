@@ -369,12 +369,20 @@ if (wanted("board")) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
     checks.codeFocusBack = await page.evaluate(() => document.activeElement?.dataset?.code === "CC-1000");
-    // A visible focus ring on the board's own buttons (their shadows must not hide it).
+    // A visible focus ring on the board's own buttons: Vici's ring in the focus colour, an outline on
+    // rectangles and a hexagonal ring (::after) on hexagons; their shadows must not hide it.
     await page.keyboard.press("Shift");
-    checks.rings = await page.evaluate(() => ["#board .board-tools .btn", "#board .hub-btn", '#board .code-btn[data-code="CC-1000"]'].map((sel) => {
+    checks.rings = await page.evaluate(() => ["#board .board-tools button", "#board .hub-btn", '#board .code-btn[data-code="CC-1000"]'].map((sel) => {
       const el = document.querySelector(sel);
       el.focus();
-      return `${sel}:${/ 0px 0px 0px 4px/.test(getComputedStyle(el).boxShadow)}`;
+      const hex = getComputedStyle(document.documentElement).getPropertyValue("--vc-focus").trim();
+      const n = parseInt(hex.slice(1), 16);
+      const focus = `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+      const cs = getComputedStyle(el);
+      const ring = getComputedStyle(el, "::after");
+      const outline = cs.outlineStyle === "solid" && parseFloat(cs.outlineWidth) >= 2 && cs.outlineColor === focus;
+      const hexRing = ring.content !== "none" && ring.opacity === "1" && ring.backgroundColor === focus;
+      return `${sel}:${outline || hexRing}`;
     }));
     // The portfolio: every agreement, the next claim deadline first; a row opens its group, and the
     // keyboard focus moves into the group.
