@@ -367,7 +367,7 @@ export function createConstellation({ onAccount, onHub, onCode }) {
     hubBtn.setAttribute("aria-label", view.group
       ? `${view.hub.label}: supplier group${view.hub.lei ? `, LEI ${view.hub.lei}` : ""}${hs && hs !== "neutral" ? `; state: ${STATE_WORDS[hs]}` : ""}. Opens the register entry.`
       : `${view.hub.label}: counterparty of ${view.agreement.id}, no supplier group in the register${hs && hs !== "neutral" ? `; state: ${STATE_WORDS[hs]}` : ""}. Opens its details.`);
-    // GlobalCorp's company codes billed by the group (burgundy, its own sites), kept across renders.
+    // GlobalCorp's company codes billed by the group (in ink: its own sites), kept across renders.
     const wantCodes = new Set(view.company_codes);
     for (const [id, b] of codeBtns) if (!wantCodes.has(id)) { b.remove(); codeBtns.delete(id); }
     view.company_codes.forEach((id, i) => {

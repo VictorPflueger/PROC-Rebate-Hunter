@@ -64,7 +64,7 @@ export function createPortfolio({ onRow }) {
       const outcome = p.row ? rowOutcome(p.row, { decision }) : { tone: "muted", big: "—", small: [] };
       const dl = p.next_deadline;
       const urgent = !!dl && dl.day <= UI.urgentDays;
-      // The agent's count is not yet a verified figure: say so, in the AI's violet.
+      // The agent's count is not yet a verified figure: say so, in the AI's lilac.
       const basis = p.mode === "result" ? BASIS_TAG[basisOf(p.id)] || null : null;
       const yearName = year ? YEAR_LABEL[year].toLowerCase() : "";
       if (st && st !== "neutral") it.btn.dataset.state = st; else delete it.btn.dataset.state;

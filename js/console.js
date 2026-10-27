@@ -90,7 +90,7 @@ export function createConsole(panel, { onOpenOptions, onOpenOutbox, onOpenReport
     log.appendChild(h("div", { class: "log-empty" },
       h("h3", {}, "Pick a scenario, then start the agent"),
       h("p", {}, "The five steps above are the agent's plan. It spots a rebate signal and finds the accounts involved, confirms the supplier group with a second source, calculates what is owed and which claim deadline comes first, then proposes three costed options."),
-      h("p", {}, "When it needs you, the step turns burgundy. Nothing is sent without your approval. You choose between a free simulation and the live agent on your own API key.")));
+      h("p", {}, "When it needs you, the step turns merlot. Nothing is sent without your approval. You choose between a free simulation and the live agent on your own API key.")));
     count.textContent = "";
   }
 

@@ -647,6 +647,9 @@ export function createBoard(container, { scenarios = [], initialScenario = null 
   if (typeof ResizeObserver === "function") {
     new ResizeObserver(() => { sizeClass(); render(); }).observe(container);
   }
+  // The board's colours come from Vici's tokens through its classes, so a new theme repaints it; it
+  // still redraws, so that anything drawn from a measured style follows the theme too.
+  document.addEventListener("vc:themechange", () => render());
   sizeClass();
   render();
 
