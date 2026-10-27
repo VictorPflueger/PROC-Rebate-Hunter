@@ -19,9 +19,9 @@ The prototype loads them from here rather than from a CDN, so every page is serv
 Keep the folder structure: the stylesheet finds the fonts at `../assets/fonts/`. Never edit these
 files; a fix belongs in Vici, and comes here with its next release.
 
-**Licence.** `LICENSE` covers all of it: Vici's code is MIT-licensed; the fonts are under the SIL
-Open Font License; Victor Pflüger's name, portrait and logo are reserved for his own use; LinkedIn's
-logo belongs to LinkedIn.
+**Licence.** `LICENSE` covers all of it: Vici's code and its Vici Mask font are MIT-licensed;
+Bricolage Grotesque, Inter and JetBrains Mono are under the SIL Open Font License; Victor Pflüger's
+name, portrait and logo are reserved for his own use; LinkedIn's logo belongs to LinkedIn.
 
 **Updating.** Copy the same files from a newer Vici release (from its `dist/` and `assets/` folders,
 and `LICENSE`) over these, and change the version and commit above. Then run the tests and look at

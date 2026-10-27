@@ -7,6 +7,9 @@
 //                focus), the portfolio of every agreement opens a group view; nothing loads from outside
 //   byline       Vici's byline in the drawer bar: Built by, the portrait, LinkedIn's logo and the
 //                website as 44 px links in new tabs; no link to the source code anywhere in the app
+//   once         every control does its job exactly once: the theme toggle, Larger text, the board's views
+//                and legend toggles, the replay speed, a drawer tab, a dialog's backdrop and Escape, the
+//                tooltips, Show key (vici.js acts on some controls by itself, the app on the others)
 //   motion       reduced motion: a Simulation run shows the board's final figures at once, no motion
 //   file         opened from file://: the page explains how to start a server
 //   missing-data a data file is missing: the boot screen names it
@@ -426,7 +429,6 @@ if (wanted("board")) {
   ]);
 }
 
-// ---- motion: reduced motion shows the final state at once ---------------------------------------------------
 // ---- byline: Vici's byline in the drawer bar ---------------------------------------------------------
 if (wanted("byline")) {
   const t = await newPage();
@@ -473,6 +475,119 @@ if (wanted("byline")) {
   ]);
 }
 
+// ---- once: every control does its job exactly once ----------------------------------------------------
+// vici.js acts on some controls by itself (the theme toggle, tooltips, a dialog's backdrop, toggle
+// classes); the app owns the others. A control both act on would flip twice and look unchanged, which
+// a plain click test misses: each control is clicked once, then again, and must change exactly once.
+if (wanted("once")) {
+  const t = await newPage();
+  const { page } = t;
+  const checks = {};
+  // Each state is read in one go after two frames, so a redraw the click scheduled has happened and a
+  // second flip would show.
+  const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const read = async (fn) => { await settled(); return page.evaluate(fn); };
+  try {
+    await boot(page);
+    // The theme toggle (vici.js's): light, then dark, then light, remembered under vc-theme.
+    const theme = () => read(() => `${document.documentElement.dataset.theme}:${document.querySelector("[data-vc-theme-toggle]").getAttribute("aria-pressed")}:${localStorage.getItem("vc-theme")}`);
+    checks.theme = [await theme()];
+    await page.click("[data-vc-theme-toggle]");
+    checks.theme.push(await theme());
+    await page.click("[data-vc-theme-toggle]");
+    checks.theme.push(await theme());
+    // Larger text (the app's): on, then off.
+    const text = () => read(() => `${document.querySelector("#console").dataset.text}:${document.querySelector("#console .text-size").getAttribute("aria-pressed")}`);
+    checks.text = [await text()];
+    await page.click("#console .text-size");
+    checks.text.push(await text());
+    await page.click("#console .text-size");
+    checks.text.push(await text());
+    // The board's views and a legend toggle (the board's).
+    const view = () => read(() => `${document.querySelector("#board").dataset.view}:${[...document.querySelectorAll("#board .board-tools button")].map((b) => b.getAttribute("aria-pressed")).join(":")}`);
+    checks.view = [await view()];
+    await page.click('#board .board-tools button:has-text("Portfolio view")');
+    checks.view.push(await view());
+    await page.click('#board .board-tools button:has-text("Group view")');
+    checks.view.push(await view());
+    const fold = await page.$('#board .legend[data-collapsed="true"] .legend-head button');
+    if (fold) await fold.click();
+    const labels = () => read(() => {
+      const chip = [...document.querySelectorAll("#board .legend-chip")].find((b) => /Labels/.test(b.textContent));
+      return `${chip?.getAttribute("aria-pressed")}:${document.querySelector("#board .constellation").dataset.labels}`;
+    });
+    checks.labels = [await labels()];
+    await page.click('#board .legend-chip:has-text("Labels")');
+    checks.labels.push(await labels());
+    await page.click('#board .legend-chip:has-text("Labels")');
+    checks.labels.push(await labels());
+    // The replay speed (the app's group of toggle buttons): one pressed, the one clicked.
+    await page.click('button[aria-label="Replay speed ×2"]');
+    checks.speed = await read(() => [...document.querySelectorAll(".controls .segmented button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent));
+    // A drawer tab opens the drawer; the open tab, clicked again, closes it (and is no longer selected).
+    const drawer = () => read(() => `${document.querySelector("#drawer").dataset.open}:${document.querySelector("#tab-audit").getAttribute("aria-selected")}`);
+    await page.click("#tab-audit");
+    checks.drawer = [await drawer()];
+    await page.click("#tab-audit");
+    checks.drawer.push(await drawer());
+    // A dialog is the app's, not vici.js's (data-vc-dismissable="false"): a press on its backdrop closes
+    // and removes it (had vici.js closed it, the closed dialog would stay in the page); so does Escape,
+    // which gives the focus back to the button that opened it.
+    await page.click("#btn-diagnostics");
+    await page.waitForSelector("dialog.vc-dialog[open]");
+    checks.owner = await page.$eval("dialog.vc-dialog[open]", (d) => d.dataset.vcDismissable);
+    await page.mouse.click(8, 540);
+    await page.waitForTimeout(300);
+    checks.backdrop = await read(() => document.querySelectorAll("dialog.vc-dialog").length);
+    await page.click("#btn-about");
+    await page.waitForSelector(".intro-modal[open]");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    checks.escape = await read(() => `${document.querySelectorAll("dialog.vc-dialog").length}:${document.activeElement?.id}`);
+    // Tooltips: each anchor has one tooltip, and vici.js has bound every one (it makes a bound tooltip a
+    // manual popover, and binds each only once), the app's own included; a hover opens exactly one.
+    checks.tooltips = await page.evaluate(() => {
+      const anchors = [...document.querySelectorAll(".vc-tooltip-anchor")];
+      const tips = anchors.map((a) => a.querySelectorAll(":scope > .vc-tooltip"));
+      return { anchors: anchors.length, single: tips.every((t) => t.length === 1), bound: tips.filter((t) => t[0]?.getAttribute("popover") === "manual").length };
+    });
+    await page.hover("[data-vc-theme-toggle]");
+    await page.waitForTimeout(400);
+    checks.tooltipOpen = await page.evaluate(() => [...document.querySelectorAll(".vc-tooltip")].filter((t) => t.matches(":popover-open")).map((t) => t.textContent));
+    await page.mouse.move(960, 700);
+    // The key field's Show key button (the app's): shown, then masked again.
+    await page.click("#btn-start");
+    await page.waitForSelector(".mode-card");
+    await page.click('.mode-card[data-mode="live"] .mode-cta button');
+    await page.waitForSelector("#api-key-input");
+    const field = () => read(() => document.querySelector("#api-key-input").type);
+    const show = page.locator(".input-row .vc-icon-button");
+    checks.keyField = [await field()];
+    await show.click();
+    checks.keyField.push(await field());
+    await show.click();
+    checks.keyField.push(await field());
+    await page.keyboard.press("Escape");
+  } catch (err) {
+    checks.FAILED = String(err.message).split("\n")[0];
+    await shot(page, "once-fail.png");
+  }
+  const seq = (xs, want) => JSON.stringify(xs) === JSON.stringify(want);
+  await finish("once: every control does its job exactly once", t, checks, [
+    [seq(checks.theme, ["light:false:null", "dark:true:dark", "light:false:light"]), `the theme toggle switches once per click and remembers it (${checks.theme})`],
+    [seq(checks.text, ["standard:false", "large:true", "standard:false"]), `Larger text switches once per click (${checks.text})`],
+    [seq(checks.view, ["group:true:false", "portfolio:false:true", "group:true:false"]), `the view buttons switch once (${checks.view})`],
+    [seq(checks.labels, ["true:on", "false:off", "true:on"]), `a legend toggle switches once (${checks.labels})`],
+    [seq(checks.speed, ["×2"]), `one replay speed pressed, the one clicked (${checks.speed})`],
+    [seq(checks.drawer, ["true:true", "false:false"]), `a tab opens the drawer, the open tab closes it (${checks.drawer})`],
+    [checks.owner === "false" && checks.backdrop === 0 && checks.escape === "0:btn-about", `a dialog closes once, by the app, on its backdrop or Escape, and Escape gives the focus back (${checks.owner}, ${checks.backdrop}, ${checks.escape})`],
+    [checks.tooltips?.anchors > 0 && checks.tooltips.single && checks.tooltips.bound === checks.tooltips.anchors && seq(checks.tooltipOpen, ["Dark theme"]),
+      `every tooltip is bound, and a hover opens one (${JSON.stringify(checks.tooltips)}, ${checks.tooltipOpen})`],
+    [seq(checks.keyField, ["password", "text", "password"]), `Show key shows and hides once per click (${checks.keyField})`]
+  ]);
+}
+
+// ---- motion: reduced motion shows the final state at once ---------------------------------------------------
 if (wanted("motion")) {
   const t = await newPage({ reducedMotion: "reduce" });
   const { page } = t;
