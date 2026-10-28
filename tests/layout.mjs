@@ -112,7 +112,7 @@ async function boardOverlaps(page) {
 }
 
 async function toOutbox(page) {
-  await page.click('.option-card[data-recommended="true"] .btn-approve');
+  await page.click('.option-card[data-recommended="true"] [data-action="approve"]');
   await page.waitForFunction(() => /Waiting for your approval of \d+ draft/.test(document.querySelector("#console").innerText), null, { timeout: 120000 });
   await page.waitForTimeout(400);
 }
@@ -121,26 +121,26 @@ async function toOutbox(page) {
 async function toFinding(page, scenarioId = null) {
   if (scenarioId) {
     await page.click("#dd-scenario");
-    await page.click(`.menu-item[data-id="${scenarioId}"]`);
+    await page.click(`.vc-menu__item[data-id="${scenarioId}"]`);
   }
   await page.click('button[aria-label="Replay speed ×4"]');
   await page.click("#btn-start");
   await page.waitForSelector(".mode-card");
   await page.click('.mode-card[data-mode="simulation"] .mode-cta button');
-  await page.waitForFunction(() => [...document.querySelectorAll("#board .race-head .chip, #board .cap-chip")].some((c) => c.textContent === "Verified count"), null, { timeout: 120000 });
+  await page.waitForFunction(() => [...document.querySelectorAll("#board .race-head .vc-tag, #board .cap-chip")].some((c) => c.textContent === "Verified count"), null, { timeout: 120000 });
   await page.waitForTimeout(1200);
 }
 
 async function toOptions(page, scenarioId = null) {
   if (scenarioId) {
     await page.click("#dd-scenario");
-    await page.click(`.menu-item[data-id="${scenarioId}"]`);
+    await page.click(`.vc-menu__item[data-id="${scenarioId}"]`);
   }
   await page.click('button[aria-label="Replay speed ×4"]');
   await page.click("#btn-start");
   await page.waitForSelector(".mode-card");
   await page.click('.mode-card[data-mode="simulation"] .mode-cta button');
-  await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 120000 });
+  await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 120000 });
   // The longest status label ("Awaiting your decision") is the one the control bar must fit.
   await page.waitForFunction(() => document.querySelector(".status-pill .text")?.textContent.trim() === "Awaiting your decision", null, { timeout: 30000 });
   await page.waitForTimeout(300);
@@ -158,7 +158,7 @@ if (wanted("viewports")) {
       await toFinding(page);
       const boardFinding = await boardOverlaps(page);
       await page.screenshot({ path: path.join(OUT, `vp-${w}x${h}-finding.png`) });
-      await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 120000 });
+      await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 120000 });
       await page.waitForFunction(() => document.querySelector(".status-pill .text")?.textContent.trim() === "Awaiting your decision", null, { timeout: 30000 });
       await page.waitForTimeout(300);
       const options = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
@@ -204,7 +204,7 @@ if (wanted("scenarios")) {
       await toFinding(page, id);
       const boardFinding = await boardOverlaps(page);
       await page.screenshot({ path: path.join(OUT, `sc-${id}-1280-finding.png`) });
-      await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 120000 });
+      await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 120000 });
       await page.waitForFunction(() => document.querySelector(".status-pill .text")?.textContent.trim() === "Awaiting your decision", null, { timeout: 30000 });
       await page.waitForTimeout(300);
       const atOptions = await headerGeometry(page);
@@ -271,10 +271,10 @@ if (wanted("targets")) {
     await page.waitForSelector(".mode-card");
     await audit("mode dialog");
     await page.click('.mode-card[data-mode="simulation"] .mode-cta button');
-    await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 120000 });
+    await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 120000 });
     await page.waitForTimeout(500);
     await audit("options");
-    await page.click('.option-card[data-recommended="true"] .btn-approve');
+    await page.click('.option-card[data-recommended="true"] [data-action="approve"]');
     await page.waitForFunction(() => /Waiting for your approval of \d+ draft/.test(document.querySelector("#console").innerText), null, { timeout: 120000 });
     await audit("outbox");
     await page.click('button:has-text("Approve all")');

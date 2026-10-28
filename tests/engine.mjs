@@ -314,7 +314,7 @@ assert.deepEqual(model.problems, []);
 {
   const B = await mod("js/board_data.js");
   const { quietRow, rowOutcome, periodText, tierMoney, rowPriority } = await mod("js/board_race.js");
-  const { constellationGeometry, ringLabelClear, labelsClear, separateLabels } = await mod("js/board_group.js");
+  const { constellationGeometry, ringLabelClear, labelsClear, separateLabels, DOT_REACH } = await mod("js/board_group.js");
   const { decisionYears, acceptedYears } = await mod("js/board.js");
   const { prefixLabels } = await mod("js/board_band.js");
   const SCEN = sandbox.window.SCENARIOS;
@@ -450,7 +450,9 @@ assert.deepEqual(model.problems, []);
   assert.deepEqual({ ...emitted[0][1] }, { vendor_ids: ["10003"], link_ids: ["L-10003"], group_ids: ["G-CISCO"], company_code_ids: ["CC-2000"], agreement_ids: ["RA-CISCO"], state: "at_risk" });
   ok("ui_mark_board marks only ids of each list's kind and reports the rest");
 
-  // Geometry: on the ring at its radius, outside further out, inside the area, nothing invented.
+  // Geometry: on the ring (a flat-top hexagon: its edges are √3/2 of its circumradius from the hub,
+  // with normals at 30°, 90° and 150°), outside further out, inside the area, nothing invented.
+  const onHexagon = (p, c, r) => Math.abs(Math.max(...[30, 90, 150].map((a) => Math.abs((p.x - c.x) * Math.cos((a * Math.PI) / 180) + (p.y - c.y) * Math.sin((a * Math.PI) / 180)))) - (r * Math.sqrt(3)) / 2) < 0.5;
   for (const [width, height, narrow] of [[1150, 560, false], [760, 300, true], [760, 150, true], [1900, 900, false]]) {
     const g = constellationGeometry({ width, height, narrow, ring: ["a", "b", "c"], outer: ["d", "e", "f"], moved: ["g"], satellites: [{ vendor_id: "s", probe: "d" }] });
     assert.deepEqual([...g.pos.keys()].sort(), ["a", "b", "c", "d", "e", "f", "g", "s"], `${width}×${height}: one place per account`);
@@ -458,14 +460,14 @@ assert.deepEqual(model.problems, []);
     assert.ok(g.r >= 34 && g.r <= 190);
     for (const [id, p] of g.pos) {
       const d = Math.hypot(p.x - g.hub.x, p.y - g.hub.y);
-      if (p.place === "ring") assert.ok(Math.abs(d - g.r) < 0.5, `${id} on the ring`);
+      if (p.place === "ring") assert.ok(onHexagon(p, g.hub, g.r), `${id} on the ring`);
       if (p.place === "outer") assert.ok(d > g.r + 40, `${id} outside the ring`);
       assert.ok(p.x >= 0 && p.x <= Math.max(200, width) && p.y >= 0 && p.y <= Math.max(100, height), `${width}×${height}: ${id} inside the area`);
     }
   }
   // Every account's label fits across the area, whichever side it takes: the accounts a decision
   // links (right arc), and a look-alike, whose label takes the side away from the hub.
-  const reachOk = (g, width, insetLeft = 0) => [...g.pos.values()].every((p) => (p.side === "left" ? p.x - (23 + 12 + g.labelRoom) >= insetLeft + 12 - 0.5 : p.x + 23 + 12 + g.labelRoom <= width - 12 + 0.5));
+  const reachOk = (g, width, insetLeft = 0) => [...g.pos.values()].every((p) => (p.side === "left" ? p.x - (DOT_REACH + 12 + g.labelRoom) >= insetLeft + 12 - 0.5 : p.x + DOT_REACH + 12 + g.labelRoom <= width - 12 + 0.5));
   const linked = constellationGeometry({ width: 1150, height: 560, ring: ["a", "b"], moved: ["c", "d", "e"] });
   assert.ok(reachOk(linked, 1150) && linked.labelRoom === 236, "labels of linked accounts fit on the right, wide");
   const apexLike = constellationGeometry({ width: 960, height: 420, ring: ["a"], satellites: [{ vendor_id: "s", probe: "a" }] });
@@ -482,10 +484,14 @@ assert.deepEqual(model.problems, []);
   assert.equal(labelsClear(stack, separateLabels(stack, [], { top: 0, bottom: 200 }), [], { bottom: 200, width: 300 }), true);
   const tall = [0, 1, 2].map((i) => ({ id: `t${i}`, x0: 0, x1: 100, y: 40, h: 45 }));
   assert.equal(labelsClear(tall, separateLabels(tall, [], { top: 0, bottom: 100 }), [], { bottom: 100, width: 300 }), false);
+  // The ring's label sits above the top edge (r 60: at 100 − 52): an account on that edge under it
+  // makes it step aside; accounts at the sides and outside accounts above it do not.
   const hub = { x: 100, y: 100 };
-  assert.equal(ringLabelClear({ hub, lr: 60, textLen: 120, pos: new Map([["a", { x: 100, y: 48, place: "ring" }]]) }), false);
-  assert.equal(ringLabelClear({ hub, lr: 60, textLen: 120, pos: new Map([["a", { x: 48, y: 100, place: "ring" }], ["b", { x: 152, y: 100, place: "ring" }], ["c", { x: 100, y: 20, place: "outer" }]]) }), true);
-  ok("board geometry: ring at its radius, outside further out, everything and every label inside the area, the legend beside or squeezed, labels clear or reported; the ring label steps aside");
+  const top = 100 - 30 * Math.sqrt(3);
+  assert.equal(DOT_REACH, 27);
+  assert.equal(ringLabelClear({ hub, top, textLen: 120, pos: new Map([["a", { x: 100, y: top, place: "ring" }]]) }), false);
+  assert.equal(ringLabelClear({ hub, top, textLen: 120, pos: new Map([["a", { x: 40, y: 100, place: "ring" }], ["b", { x: 160, y: 100, place: "ring" }], ["c", { x: 100, y: 20, place: "outer" }]]) }), true);
+  ok("board geometry: accounts on the hexagon ring, outside further out, everything and every label inside the area, the legend beside or squeezed, labels clear or reported; the ring label steps aside");
 }
 
 console.log(`\nAll ${passed} engine tests passed.`);

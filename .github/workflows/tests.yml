@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   node:
-    name: Colour system, world, client and engine (Node.js only)
+    name: Colour system, page icon, Vici's files, world, client and engine (Node.js only)
     # Pinned image: Playwright 1.56's system dependencies are known to install on Ubuntu 24.04.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node tests/run-all.mjs tokens world unit engine
+      - run: node tests/run-all.mjs tokens page-icon vici-files world unit engine
 
   browser:
     name: Browser suites (Playwright, Chromium)
@@ -43,7 +43,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-1.56.0-chromium-${{ runner.os }}
       - run: npm install -g playwright@1.56.0 && npx playwright install --with-deps chromium
-      - run: NODE_PATH="$(npm root -g)" node tests/run-all.mjs smoke sims live accept layout design
+      - run: NODE_PATH="$(npm root -g)" node tests/run-all.mjs smoke sims live accept layout design hexagon
         env:
           RH_TEST_OUT: ${{ runner.temp }}/rebate-hunter-tests
       - if: failure()

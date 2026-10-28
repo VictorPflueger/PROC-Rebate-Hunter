@@ -6,7 +6,7 @@ import { eurCompact, eurFull, eurMillions, shortDate } from "./format.js";
 import { erpGetVendor, erpCompanyCode, erpFamilyTree, relationText } from "./erp.js";
 import { registerEntry } from "./world.js";
 import { CHECK_LABEL, agreementSummary } from "./board_data.js";
-import { periodText, viaText } from "./board_race.js";
+import { periodText, viaText, TAG_TONE } from "./board_race.js";
 
 const STATE_TEXT = { affected: "Rebate missed", at_risk: "At risk", resolved: "Approved or settled" };
 
@@ -14,7 +14,12 @@ function stateChip(state) {
   if (!state || state === "neutral") return null;
   // Red, amber, green as everywhere on the board (the Navigator's popups show a missed state in grey).
   const tone = state === "affected" ? "danger" : state === "at_risk" ? "risk" : "approved";
-  return h("span", { class: "chip", dataset: { tone } }, STATE_TEXT[state]);
+  return tag(tone, STATE_TEXT[state]);
+}
+
+/** A Vici tag in one of the board's tones (TAG_TONE). */
+function tag(tone, text) {
+  return h("span", { class: ["vc-tag", TAG_TONE[tone] || ""] }, text);
 }
 
 function dl(rows) {
@@ -40,8 +45,8 @@ export function vendorPopover(model, id, state, ctx = {}) {
     h("div", { class: "pop-sub" }, `Vendor account ${v.id} in ${v.city}, ${v.country}`),
     h("div", { class: "pop-tags" },
       stateChip(state),
-      v.group_key ? h("span", { class: "chip", dataset: { tone: "info" } }, `Group key ${v.group_key}`) : h("span", { class: "chip", dataset: { tone: "risk" } }, "No group key"),
-      v.linked_agreements.length ? h("span", { class: "chip", dataset: { tone: "info" } }, `Linked to ${v.linked_agreements.join(", ")}`) : null
+      v.group_key ? tag("info", `Group key ${v.group_key}`) : tag("risk", "No group key"),
+      v.linked_agreements.length ? tag("info", `Linked to ${v.linked_agreements.join(", ")}`) : null
     ),
     dl([
       ctx.placeText ? ["On the board", ctx.placeText] : null,
@@ -72,7 +77,7 @@ export function companyCodePopover(model, id, state) {
       ["Vendor accounts", String(c.vendor_accounts)],
       ["Billed last year", Object.entries(c.spend_last_year_by_currency).map(([cur, v]) => (cur === "EUR" ? eurCompact(v) : `${cur} ${eurCompact(v).replace("€", "")}`)).join(" + ")]
     ]),
-    h("table", { class: "pop-table" },
+    h("table", { class: "vc-table vc-table--compact pop-table" },
       h("thead", {}, h("tr", {}, h("th", {}, "Largest accounts"), h("th", { class: "r" }, "Last year"))),
       h("tbody", {}, c.largest.map((x) => h("tr", {}, h("td", {}, `${x.vendor_id} ${x.name}`), h("td", { class: "r" }, x.currency === "EUR" ? eurCompact(x.spend) : `${x.currency} ${eurCompact(x.spend).replace("€", "")}`))))),
     h("div", { class: "pop-note" }, "Fictional company code of GlobalCorp SE. Every rebate agreement counts all company codes unless its clause says otherwise.")
@@ -88,7 +93,7 @@ export function groupPopover(model, id, state) {
   return h("div", {},
     h("div", { class: "pop-title" }, g.name),
     h("div", { class: "pop-sub" }, `Ultimate parent, ${g.headquarters}`),
-    h("div", { class: "pop-tags" }, stateChip(state), g.real_company ? h("span", { class: "chip", dataset: { tone: "info" } }, "Real company") : h("span", { class: "chip", dataset: { tone: "risk" } }, "Fictional")),
+    h("div", { class: "pop-tags" }, stateChip(state), g.real_company ? tag("info", "Real company") : tag("risk", "Fictional")),
     dl([
       ["LEI", g.lei || "none on record"],
       ["Agreements", agreements.length ? h("div", {}, agreements.map((x) => h("div", {}, x))) : "none"],
@@ -169,7 +174,7 @@ export function yearPopover(model, view, row, decision = null) {
     h("div", { class: "pop-title" }, `${row.label}${row.projected ? " (projected)" : ""}: ${a.short}`),
     h("div", { class: "pop-sub" }, `${a.id}, ${periodText(row.period)}. ${a.tiers_text}${a.report_min_eur ? `; the report lists ${a.short} only from ${eurMillions(a.report_min_eur)}` : ""}.`),
     dl(rows),
-    h("table", { class: "pop-table" },
+    h("table", { class: "vc-table vc-table--compact pop-table" },
       h("thead", {}, h("tr", {}, h("th", {}, "Account"), h("th", {}, "Report"), h("th", { class: "r" }, "Spend"))),
       h("tbody", {}, row.segments.map((s) => h("tr", {}, h("td", {}, `${s.vendor_id} ${s.name}`), h("td", {}, s.reason ? `${kindText(s)}: ${s.reason}` : kindText(s)), h("td", { class: "r" }, eurCompact(s.eur)))))),
     h("div", { class: "pop-note" }, o.mode === "report"

@@ -4,7 +4,7 @@ export const APP = {
   id: "rh",
   name: "Rebate Hunter",
   fullName: "Procurement Rebate Hunter",
-  version: "7.1.0"
+  version: "7.2.0"
 };
 
 export const ANTHROPIC = {

@@ -18,9 +18,9 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
 
   function empty() {
     clear(panel);
-    panel.appendChild(h("div", { class: "empty" },
-      h("strong", {}, "No options yet"),
-      h("span", {}, "Once the agent has calculated the rebate, its three costed options and the do-nothing baseline appear here for your decision.")));
+    panel.appendChild(h("div", { class: "vc-empty empty" },
+      h("strong", { class: "vc-empty__title" }, "No options yet"),
+      h("p", { class: "vc-empty__text" }, "Once the agent has calculated the rebate, its three costed options and the do-nothing baseline appear here for your decision.")));
   }
 
   function render() {
@@ -48,7 +48,7 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
               ? h("span", { class: "compare-bar baseline", style: { width: `${(r.base / max) * 100}%` } })
               : [h("span", { class: "compare-bar mitigation", style: { width: `${(r.mit / max) * 100}%` } }),
                 h("span", { class: "compare-bar residual", style: { left: `${(r.mit / max) * 100}%`, width: `${(r.res / max) * 100}%` } })]),
-          h("span", { class: "compare-value num" }, eurCompact(r.total))))),
+          h("span", { class: "compare-value vc-tabular" }, eurCompact(r.total))))),
       h("div", { class: "compare-legend" },
         h("span", { class: "k-mit" }, "Response cost"),
         h("span", { class: "k-res" }, "Rebate still lost"),
@@ -61,7 +61,7 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
     if (refocus) {
       // The cards were rebuilt: put focus on the next decision, or on the decided card's status.
       refocus = false;
-      const next = panel.querySelector(".option-actions .btn");
+      const next = panel.querySelector(".option-actions button");
       const target = next || panel.querySelector(".option-status")?.closest(".option-card");
       if (target) {
         if (!next) target.setAttribute("tabindex", "-1");
@@ -72,18 +72,18 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
 
   function optionCard(o) {
     const st = status.get(o.id) || (locked ? "not_selected" : ended ? "expired" : "");
-    const card = h("article", { class: "option-card", dataset: { recommended: String(!!o.recommended), status: st, kind: "option" }, "aria-label": `Option ${o.letter}: ${o.title}` },
+    const card = h("article", { class: "vc-card option-card", dataset: { recommended: String(!!o.recommended), status: st, kind: "option" }, "aria-label": `Option ${o.letter}: ${o.title}` },
       h("div", { class: "option-top" },
         h("span", { class: "option-letter", "aria-hidden": "true" }, o.letter),
         h("h4", { class: "option-title" }, o.title),
-        o.recommended ? h("span", { class: "chip", dataset: { tone: "recommended" } }, "Recommended") : null),
+        o.recommended ? h("span", { class: "vc-tag vc-tag--solid" }, "Recommended") : null),
       o.description ? renderInline(o.description, h("p", { class: "option-desc" })) : null,
       h("dl", { class: "option-figures" },
         h("dt", {}, "Response cost"), h("dd", {}, eurCompact(o.response_cost_eur)),
         h("dt", {}, "Rebate still lost"), h("dd", {}, eurCompact(o.residual_var_eur)),
         h("dt", {}, "Cash in after"), h("dd", {}, days(o.time_days)),
         h("dt", {}, "Net recovery"), h("dd", {}, eurCompact(o.savings_eur))),
-      h("div", { class: "option-total" }, h("span", { class: "label" }, "Expected total"), h("span", { class: "value num" }, eurCompact(o.total_cost_eur))),
+      h("div", { class: "option-total" }, h("span", { class: "label" }, "Expected total"), h("span", { class: "value vc-tabular" }, eurCompact(o.total_cost_eur))),
       o.residual_risk ? h("p", { class: "option-risk" }, h("strong", {}, "Residual risk: "), o.residual_risk) : null,
       actionsFor(o, st));
     return card;
@@ -94,7 +94,7 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
     const firstLoss = b?.first_loss_day === null || b?.first_loss_day === undefined
       ? `none within ${H} days`
       : `day ${b.first_loss_day}${b.first_loss_label || b.first_loss_short ? `, ${b.first_loss_label || b.first_loss_short}` : ""}`;
-    return h("article", { class: "option-card", dataset: { kind: "baseline", status: st }, "aria-label": "Do nothing" },
+    return h("article", { class: "vc-card option-card", dataset: { kind: "baseline", status: st }, "aria-label": "Do nothing" },
       h("div", { class: "option-top" },
         h("span", { class: "option-letter", "aria-hidden": "true" }, "–"),
         h("h4", { class: "option-title" }, "Do nothing")),
@@ -104,24 +104,25 @@ export function createOptionsPanel(panel, { onDecision, onCount } = {}) {
         ...(b?.projected_eur > 0 ? [h("dt", {}, "Of which projected"), h("dd", { title: "The current year's rebate, projected from last year: it is lost too if nothing changes before the year ends" }, `${eurCompact(b.projected_eur)} (current year)`)] : []),
         h("dt", {}, "First deadline"), h("dd", {}, firstLoss),
         ...(b?.lost_already_eur > 0 ? [h("dt", {}, "Already lost"), h("dd", {}, eurCompact(b.lost_already_eur))] : [])),
-      h("div", { class: "option-total" }, h("span", { class: "label" }, "Expected total"), h("span", { class: "value num" }, eurCompact(b?.value_at_risk_eur))),
+      h("div", { class: "option-total" }, h("span", { class: "label" }, "Expected total"), h("span", { class: "value vc-tabular" }, eurCompact(b?.value_at_risk_eur))),
       actionsFor({ id: "baseline", letter: "–", title: "Do nothing" }, st, true));
   }
 
   function actionsFor(o, st, isBaseline = false) {
-    if (st === "approved") return h("div", { class: "option-status mark-pass" }, icon("check", 20), isBaseline ? "Loss accepted" : "Approved");
-    if (st === "rejected") return h("div", { class: "option-status mark-fail" }, icon("x", 20), "Rejected");
-    if (st === "not_selected") return h("div", { class: "option-status mark-skip" }, "Not selected");
-    if (st === "expired") return h("div", { class: "option-status mark-skip" }, "No decision: the run ended");
+    // The decided state is a Vici tag in its tone, with its icon and its word.
+    if (st === "approved") return h("div", { class: "option-status" }, h("span", { class: "vc-tag vc-tag--success" }, icon("check", 20), isBaseline ? "Loss accepted" : "Approved"));
+    if (st === "rejected") return h("div", { class: "option-status" }, h("span", { class: "vc-tag vc-tag--danger" }, icon("x", 20), "Rejected"));
+    if (st === "not_selected") return h("div", { class: "option-status" }, h("span", { class: "vc-tag" }, "Not selected"));
+    if (st === "expired") return h("div", { class: "option-status" }, h("span", { class: "vc-tag" }, "No decision: the run ended"));
     if (isBaseline) {
       return h("div", { class: "option-actions" },
-        h("button", { class: "btn", type: "button", on: { click: () => decide(o, "approved") } }, "Accept the loss"));
+        h("button", { class: "vc-button vc-button--outline", type: "button", dataset: { action: "approve" }, on: { click: () => decide(o, "approved") } }, "Accept the loss"));
     }
     return h("div", { class: "option-actions" },
-      // The recommended option's Approve is the one solid brand button; the others stay available
-      // as outlined brand buttons. Reject is a neutral decision, not an alarm.
-      h("button", { class: `btn btn-approve${o.recommended ? "" : " btn-brand-outline"}`, type: "button", on: { click: () => decide(o, "approved") } }, icon("check", 18), "Approve"),
-      h("button", { class: "btn btn-reject", type: "button", on: { click: () => decide(o, "rejected") } }, "Reject"));
+      // The recommended option's Approve is the one solid merlot button; the others stay available as
+      // Vici's secondary (soft merlot) buttons. Reject is a neutral decision, not an alarm.
+      h("button", { class: `vc-button${o.recommended ? "" : " vc-button--secondary"}`, type: "button", dataset: { action: "approve" }, on: { click: () => decide(o, "approved") } }, icon("check", 18), "Approve"),
+      h("button", { class: "vc-button vc-button--outline", type: "button", dataset: { action: "reject" }, on: { click: () => decide(o, "rejected") } }, "Reject"));
   }
 
   function decide(o, decision) {

@@ -8,7 +8,7 @@ import { h } from "./dom.js";
 import { eurCompact, shortDate } from "./format.js";
 import { UI } from "./config.js";
 import { YEAR_LABEL } from "./board_data.js";
-import { miniTrack, rowOutcome } from "./board_race.js";
+import { miniTrack, rowOutcome, TAG_TONE } from "./board_race.js";
 
 // The agent's figures that are not (yet) verified, as on the race's chip.
 const BASIS_TAG = { estimate: ["First estimate", "ai"], what_if: ["What-if", "ai"], partial: ["Partial count", "risk"] };
@@ -31,7 +31,7 @@ export function createPortfolio({ onRow }) {
     const checked = h("span", { class: "pf-checked", hidden: true }, "✓ checked in this run");
     const track = h("span", {});
     const big = h("strong", {}, "");
-    const tag = h("span", { class: "pf-basis", hidden: true }, "");
+    const tag = h("span", { class: "vc-tag pf-basis", hidden: true }, "");
     const small = h("span", {}, "");
     const out = h("span", { class: "pf-out" }, h("span", { class: "pf-big" }, big, tag), small);
     const dlBig = h("strong", {}, "");
@@ -64,12 +64,14 @@ export function createPortfolio({ onRow }) {
       const outcome = p.row ? rowOutcome(p.row, { decision }) : { tone: "muted", big: "—", small: [] };
       const dl = p.next_deadline;
       const urgent = !!dl && dl.day <= UI.urgentDays;
-      // The agent's count is not yet a verified figure: say so, in the AI's violet.
+      // The agent's count is not yet a verified figure: say so, in the AI's lilac.
       const basis = p.mode === "result" ? BASIS_TAG[basisOf(p.id)] || null : null;
       const yearName = year ? YEAR_LABEL[year].toLowerCase() : "";
       if (st && st !== "neutral") it.btn.dataset.state = st; else delete it.btn.dataset.state;
       it.btn.dataset.checking = String(checking.has(p.id));
       it.btn.dataset.focus = String(p.id === focus);
+      // The agreement in focus is the current one (its frame is ink: css/board.css).
+      if (p.id === focus) it.btn.setAttribute("aria-current", "true"); else it.btn.removeAttribute("aria-current");
       it.name.textContent = p.short;
       it.sub.textContent = `${p.id} · ${p.tiers_text}`;
       it.checked.hidden = !checked.has(p.id);
@@ -79,7 +81,7 @@ export function createPortfolio({ onRow }) {
       it.out.dataset.tone = outcome.tone;
       it.big.textContent = outcome.big;
       it.tag.hidden = !basis;
-      if (basis) { it.tag.textContent = basis[0]; it.tag.dataset.tone = basis[1]; }
+      if (basis) { it.tag.textContent = basis[0]; it.tag.className = ["vc-tag", TAG_TONE[basis[1]] || "", "pf-basis"].filter(Boolean).join(" "); }
       it.small.textContent = p.mode === "report" ? `report: ${eurCompact(p.row?.total_eur || 0)} counted` : (outcome.small[0] || "");
       it.deadline.dataset.urgent = String(urgent);
       it.dlBig.textContent = dl ? (dl.day === 0 ? "today" : `${dl.day} day${dl.day === 1 ? "" : "s"}`) : "none open";

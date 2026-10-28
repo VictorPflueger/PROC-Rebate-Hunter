@@ -9,6 +9,9 @@ import { h, prefersReducedMotion } from "./dom.js";
 import { eurCompact, eurFull, eurMillions, shortDate, dateWithYear } from "./format.js";
 import { UI } from "./config.js";
 
+// The tones of the board's tags, as Vici's tag modifiers (lilac for the agent's own figures).
+export const TAG_TONE = { ai: "vc-tag--feature", info: "vc-tag--info", risk: "vc-tag--warning", danger: "vc-tag--danger", approved: "vc-tag--success" };
+
 export const BASIS_CHIP = {
   report: ["Year-end report", null],
   estimate: ["First estimate", "ai"],
@@ -148,7 +151,7 @@ export function rowPriority(rows, decisions = new Map()) {
  * whole: never a row cut in half); the others stay built, hidden, so they come back without a replay.
  */
 export function createRace({ onRow }) {
-  const chip = h("span", { class: "chip" });
+  const chip = h("span", { class: "vc-tag" });
   const key = h("div", { class: "race-key", "aria-hidden": "true" });
   const more = h("span", { class: "race-hidden", hidden: true, title: "The board is short: it keeps the years with money open. Hide the drawer, or make the window taller, to see every year." }, "");
   const rowsEl = h("div", { class: "race-rows" });
@@ -164,7 +167,7 @@ export function createRace({ onRow }) {
     if (view.agreement.id !== agreementId) { rowsEl.replaceChildren(); rows.clear(); agreementId = view.agreement.id; }
     const [label, tone] = BASIS_CHIP[basisKey] || BASIS_CHIP.report;
     chip.textContent = label;
-    if (tone) chip.dataset.tone = tone; else delete chip.dataset.tone;
+    chip.className = ["vc-tag", TAG_TONE[tone] || ""].filter(Boolean).join(" ");
     const shown = view.rows.filter((r) => showCY || r.year !== "CY");
     renderKey(view, shown);
     for (const [year, r] of rows) if (!shown.some((x) => x.year === year)) { r.btn.remove(); rows.delete(year); }

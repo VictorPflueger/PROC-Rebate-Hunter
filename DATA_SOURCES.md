@@ -27,7 +27,7 @@ Exact parameters and response shapes are in `TECH_NOTES.md` §4. If a call fails
 
 Since version 7.1.0 Rebate Hunter draws no map and loads no map data: its centrepiece is the rebate board (`TECH_NOTES.md` §5, D-R42), drawn from the synthetic company alone. The world keeps the cities and countries the details show (each vendor account's invoicing city, the company codes' cities, the groups' headquarters cities) and no coordinates.
 
-The only front-end assets are the fonts Barlow, Barlow Semi Condensed and IBM Plex Mono (SIL Open Font License 1.1), served from the app itself so no visitor data goes to a font service. There is no runtime library and no CDN.
+The only front-end assets are Victor Pflüger's design system Vici, copied into `vici/` (`vici/README.md`): its stylesheet, script and tokens (MIT), its fonts Bricolage Grotesque, Inter and JetBrains Mono (SIL Open Font License 1.1), his portrait for the byline and LinkedIn's own logo file. All are served from the app itself, so no visitor data goes to a font service. There is no runtime library and no CDN.
 
 ## 3. The synthetic company — what is invented and what is anchored
 

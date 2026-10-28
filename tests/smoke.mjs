@@ -5,6 +5,11 @@
 //   intro        first visit opens the intro window; "How it works" reopens it; Start agent leads to the mode choice
 //   board        the rebate board: the scenario's group view, popovers by keyboard (Escape returns the
 //                focus), the portfolio of every agreement opens a group view; nothing loads from outside
+//   byline       Vici's byline in the drawer bar: Built by, the portrait, LinkedIn's logo and the
+//                website as 44 px links in new tabs; no link to the source code anywhere in the app
+//   once         every control does its job exactly once: the theme toggle, Larger text, the board's views
+//                and legend toggles, the replay speed, a drawer tab, a dialog's backdrop and Escape, the
+//                tooltips, Show key (vici.js acts on some controls by itself, the app on the others)
 //   motion       reduced motion: a Simulation run shows the board's final figures at once, no motion
 //   file         opened from file://: the page explains how to start a server
 //   missing-data a data file is missing: the boot screen names it
@@ -74,20 +79,20 @@ if (wanted("sim")) {
     await page.waitForTimeout(2500);
     checks.badgeSim = (await page.textContent("#mode-badge")).trim();
     checks.watermarkVisible = await page.isVisible(".sim-watermark");
-    await page.waitForSelector('.option-card[data-recommended="true"] .btn-approve', { state: "visible", timeout: 180000 });
+    await page.waitForSelector('.option-card[data-recommended="true"] [data-action="approve"]', { state: "visible", timeout: 180000 });
     await page.waitForTimeout(800);
     await shot(page, "03-options.png");
     checks.optionCards = await page.$$eval(".option-card", (els) => els.map((e) => `${e.dataset.kind}:${e.querySelector(".option-total .value")?.textContent}`));
     checks.approveButtonsVisibleWithoutScroll = await page.evaluate(() => {
       const body = document.querySelector(".drawer-body").getBoundingClientRect();
-      return [...document.querySelectorAll(".option-actions .btn")].every((b) => { const r = b.getBoundingClientRect(); return r.top >= body.top && r.bottom <= body.bottom; });
+      return [...document.querySelectorAll(".option-actions button")].every((b) => { const r = b.getBoundingClientRect(); return r.top >= body.top && r.bottom <= body.bottom; });
     });
     checks.legendInsideBoard = await page.evaluate(() => {
       const m = document.querySelector("#board").getBoundingClientRect();
       const l = document.querySelector("#board .legend").getBoundingClientRect();
       return getComputedStyle(document.querySelector("#board .legend")).display === "none" || (l.top >= m.top - 1 && l.bottom <= m.bottom + 1);
     });
-    await page.click('.option-card[data-recommended="true"] .btn-approve');
+    await page.click('.option-card[data-recommended="true"] [data-action="approve"]');
     // The board follows the decision: option A links Meraki, Acacia and Splunk, which join the ring
     // (or, while the open drawer leaves the board short, slide into the band's ring), and the closed
     // year shows the claim approved (not "recovered": nothing is booked yet).
@@ -229,11 +234,11 @@ if (wanted("diag")) {
     await page.waitForFunction(() => document.querySelectorAll('.diag-status[data-s="pass"]').length >= 2, null, { timeout: 10000 });
     await shot(page, "12-diagnostics.png");
     checks.localRows = await page.$$eval(".diag-table tbody tr", (rows) => rows.map((r) => `${r.querySelector("strong")?.textContent}:${r.querySelector(".diag-status")?.dataset.s}`).filter((x) => /World|privacy/.test(x)));
-    checks.footer = await page.$eval(".modal-foot .left", (e) => e.textContent.trim());
+    checks.footer = await page.$eval(".vc-dialog__footer .dialog-note", (e) => e.textContent.trim());
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
     await page.click("#dd-scenario");
-    await page.click('.menu-item[data-id="custom"]');
+    await page.click('.vc-menu__item[data-id="custom"]');
     await page.waitForSelector("#custom-scenario");
     await page.fill("#custom-scenario", "Slack invoices us from Dublin on its own account. Does it count towards the Salesforce agreement?");
     await page.click('button:has-text("Use this scenario")');
@@ -272,7 +277,7 @@ if (wanted("intro")) {
     await page.waitForTimeout(200);
     checks.focus = await page.evaluate(() => document.activeElement?.textContent?.trim());
     await shot(page, "20-intro.png");
-    await page.click('.intro-modal .modal-foot button:has-text("Close")');
+    await page.click('.intro-modal .vc-dialog__footer button:has-text("Close")');
     await page.waitForSelector(".intro-modal", { state: "detached", timeout: 3000 });
     checks.flag = await page.evaluate((k) => localStorage.getItem(k), KEYS.introSeen);
     await page.reload();
@@ -285,7 +290,7 @@ if (wanted("intro")) {
     await page.keyboard.press("Escape");
     await page.waitForSelector(".intro-modal", { state: "detached", timeout: 3000 });
     await page.click("#btn-about");
-    await page.click('.intro-modal .modal-foot button:has-text("Start agent")');
+    await page.click('.intro-modal .vc-dialog__footer button:has-text("Start agent")');
     await page.waitForSelector(".mode-card", { timeout: 5000 });
     checks.startOpensModeChoice = await page.$$eval(".mode-card", (els) => els.map((e) => e.dataset.mode).join(","));
     // During a run the window only explains: Close is its only button and the run carries on.
@@ -293,7 +298,7 @@ if (wanted("intro")) {
     await page.waitForTimeout(1200);
     await page.click("#btn-about");
     await page.waitForSelector(".intro-modal", { timeout: 3000 });
-    checks.duringRunButtons = await page.$$eval(".intro-modal .modal-foot button", (els) => els.map((e) => e.textContent.trim()));
+    checks.duringRunButtons = await page.$$eval(".intro-modal .vc-dialog__footer button", (els) => els.map((e) => e.textContent.trim()));
     await page.keyboard.press("Escape");
     checks.statusAfterClose = (await page.textContent(".status-pill .text")).trim();
     await page.click("#btn-abort");
@@ -322,11 +327,11 @@ if (wanted("board")) {
   try {
     await boot(page);
     await page.click("#dd-scenario");
-    await page.click('.menu-item[data-id="SC-MSFT-PY"]');
+    await page.click('.vc-menu__item[data-id="SC-MSFT-PY"]');
     await page.waitForTimeout(800);
     checks.caption = (await page.textContent("#board .board-caption strong")).trim();
     checks.raceYears = await page.$$eval("#board .race-row", (els) => els.map((e) => e.dataset.year).join(","));
-    checks.reportChip = (await page.textContent("#board .race-head .chip")).trim();
+    checks.reportChip = (await page.textContent("#board .race-head .vc-tag")).trim();
     checks.accounts = await page.$$eval("#board .acct", (els) => els.map((e) => `${e.dataset.id}:${e.dataset.place}`).sort().join(","));
     await shot(page, "14-board-group.png");
     // Keyboard: the hub opens the register entry; Escape closes it and gives the focus back.
@@ -369,12 +374,20 @@ if (wanted("board")) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
     checks.codeFocusBack = await page.evaluate(() => document.activeElement?.dataset?.code === "CC-1000");
-    // A visible focus ring on the board's own buttons (their shadows must not hide it).
+    // A visible focus ring on the board's own buttons: Vici's ring in the focus colour, an outline on
+    // rectangles and a hexagonal ring (::after) on hexagons; their shadows must not hide it.
     await page.keyboard.press("Shift");
-    checks.rings = await page.evaluate(() => ["#board .board-tools .btn", "#board .hub-btn", '#board .code-btn[data-code="CC-1000"]'].map((sel) => {
+    checks.rings = await page.evaluate(() => ["#board .board-tools button", "#board .hub-btn", '#board .code-btn[data-code="CC-1000"]'].map((sel) => {
       const el = document.querySelector(sel);
       el.focus();
-      return `${sel}:${/ 0px 0px 0px 4px/.test(getComputedStyle(el).boxShadow)}`;
+      const hex = getComputedStyle(document.documentElement).getPropertyValue("--vc-focus").trim();
+      const n = parseInt(hex.slice(1), 16);
+      const focus = `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+      const cs = getComputedStyle(el);
+      const ring = getComputedStyle(el, "::after");
+      const outline = cs.outlineStyle === "solid" && parseFloat(cs.outlineWidth) >= 2 && cs.outlineColor === focus;
+      const hexRing = ring.content !== "none" && ring.opacity === "1" && ring.backgroundColor === focus;
+      return `${sel}:${outline || hexRing}`;
     }));
     // The portfolio: every agreement, the next claim deadline first; a row opens its group, and the
     // keyboard focus moves into the group.
@@ -413,6 +426,164 @@ if (wanted("board")) {
     [(checks.small || []).length === 0, `every board control is at least 40 px (${checks.small})`],
     [(checks.small44 || []).length === 0, `every board entity is at least 44 px (${checks.small44})`],
     [(checks.external || []).length === 0, `nothing loads from outside (${checks.external})`]
+  ]);
+}
+
+// ---- byline: Vici's byline in the drawer bar ---------------------------------------------------------
+if (wanted("byline")) {
+  const t = await newPage();
+  const { page } = t;
+  const checks = {};
+  try {
+    await boot(page);
+    await page.waitForFunction(() => [...document.querySelectorAll(".drawer-tabs .vc-byline img")].every((i) => i.complete), null, { timeout: 5000 });
+    checks.byline = await page.evaluate(() => {
+      const b = document.querySelector(".drawer-tabs .vc-byline");
+      if (!b) return null;
+      const img = (sel) => b.querySelector(sel);
+      return {
+        label: b.querySelector(".vc-byline__label")?.textContent,
+        name: b.querySelector(".vc-byline__person .vc-byline__name")?.textContent,
+        portrait: img(".vc-byline__person .vc-avatar.vc-avatar--xs > img")?.getAttribute("src"),
+        portraitShown: img(".vc-avatar > img")?.naturalWidth || 0,
+        mark: img(".vc-byline__links a .vc-platform-mark")?.getAttribute("src"),
+        markShown: img(".vc-byline__links a .vc-platform-mark")?.naturalWidth || 0,
+        globe: !!b.querySelector('.vc-byline__links a .vc-icon.vc-icon--globe-hex[aria-hidden="true"]'),
+        links: [...b.querySelectorAll("a")].map((a) => {
+          const r = a.getBoundingClientRect();
+          return { href: a.getAttribute("href"), target: a.target, rel: a.rel, label: a.getAttribute("aria-label"), w: Math.round(r.width), h: Math.round(r.height) };
+        })
+      };
+    });
+    // The app links to its author, never to its own source code.
+    checks.sourceLinks = await page.evaluate(() => [...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")).filter((href) => /github\.com/i.test(href)));
+    await shot(page, "18-byline.png");
+  } catch (err) {
+    checks.FAILED = String(err.message).split("\n")[0];
+    await shot(page, "byline-fail.png");
+  }
+  const b = checks.byline || {};
+  const links = b.links || [];
+  await finish("byline: Vici's byline in the drawer bar", t, checks, [
+    [b.label === "Built by" && b.name === "Victor Pflüger", "Built by, then Victor's name"],
+    [b.portrait === "vici/assets/brand/portrait-96.jpg" && b.portraitShown > 0, "his hexagon portrait, Vici's file"],
+    [b.mark === "vici/assets/marks/linkedin.png" && b.markShown > 0 && b.globe, "LinkedIn's own logo file and the website's globe"],
+    [links.length === 2 && links[0].href === "https://www.linkedin.com/in/victorpflueger" && links[1].href === "https://victorpflueger.github.io/VIP/index.html"
+      && links.every((l) => l.target === "_blank" && l.rel === "author noopener" && /\(opens in a new tab\)$/.test(l.label || "")), "LinkedIn and the website, each in a new tab and named for screen readers"],
+    [links.length === 2 && links.every((l) => l.w >= 44 && l.h >= 44), `both links are 44 px targets (${links.map((l) => `${l.w}×${l.h}`).join(", ")})`],
+    [Array.isArray(checks.sourceLinks) && !checks.sourceLinks.length, `no link to the source code in the app (${checks.sourceLinks})`]
+  ]);
+}
+
+// ---- once: every control does its job exactly once ----------------------------------------------------
+// vici.js acts on some controls by itself (the theme toggle, tooltips, a dialog's backdrop, toggle
+// classes); the app owns the others. A control both act on would flip twice and look unchanged, which
+// a plain click test misses: each control is clicked once, then again, and must change exactly once.
+if (wanted("once")) {
+  const t = await newPage();
+  const { page } = t;
+  const checks = {};
+  // Each state is read in one go after two frames, so a redraw the click scheduled has happened and a
+  // second flip would show.
+  const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const read = async (fn) => { await settled(); return page.evaluate(fn); };
+  try {
+    await boot(page);
+    // The theme toggle (vici.js's): light, then dark, then light, remembered under vc-theme.
+    const theme = () => read(() => `${document.documentElement.dataset.theme}:${document.querySelector("[data-vc-theme-toggle]").getAttribute("aria-pressed")}:${localStorage.getItem("vc-theme")}`);
+    checks.theme = [await theme()];
+    await page.click("[data-vc-theme-toggle]");
+    checks.theme.push(await theme());
+    await page.click("[data-vc-theme-toggle]");
+    checks.theme.push(await theme());
+    // Larger text (the app's): on, then off.
+    const text = () => read(() => `${document.querySelector("#console").dataset.text}:${document.querySelector("#console .text-size").getAttribute("aria-pressed")}`);
+    checks.text = [await text()];
+    await page.click("#console .text-size");
+    checks.text.push(await text());
+    await page.click("#console .text-size");
+    checks.text.push(await text());
+    // The board's views and a legend toggle (the board's).
+    const view = () => read(() => `${document.querySelector("#board").dataset.view}:${[...document.querySelectorAll("#board .board-tools button")].map((b) => b.getAttribute("aria-pressed")).join(":")}`);
+    checks.view = [await view()];
+    await page.click('#board .board-tools button:has-text("Portfolio view")');
+    checks.view.push(await view());
+    await page.click('#board .board-tools button:has-text("Group view")');
+    checks.view.push(await view());
+    const fold = await page.$('#board .legend[data-collapsed="true"] .legend-head button');
+    if (fold) await fold.click();
+    const labels = () => read(() => {
+      const chip = [...document.querySelectorAll("#board .legend-chip")].find((b) => /Labels/.test(b.textContent));
+      return `${chip?.getAttribute("aria-pressed")}:${document.querySelector("#board .constellation").dataset.labels}`;
+    });
+    checks.labels = [await labels()];
+    await page.click('#board .legend-chip:has-text("Labels")');
+    checks.labels.push(await labels());
+    await page.click('#board .legend-chip:has-text("Labels")');
+    checks.labels.push(await labels());
+    // The replay speed (the app's group of toggle buttons): one pressed, the one clicked.
+    await page.click('button[aria-label="Replay speed ×2"]');
+    checks.speed = await read(() => [...document.querySelectorAll(".controls .segmented button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent));
+    // A drawer tab opens the drawer; the open tab, clicked again, closes it (and is no longer selected).
+    const drawer = () => read(() => `${document.querySelector("#drawer").dataset.open}:${document.querySelector("#tab-audit").getAttribute("aria-selected")}`);
+    await page.click("#tab-audit");
+    checks.drawer = [await drawer()];
+    await page.click("#tab-audit");
+    checks.drawer.push(await drawer());
+    // A dialog is the app's, not vici.js's (data-vc-dismissable="false"): a press on its backdrop closes
+    // and removes it (had vici.js closed it, the closed dialog would stay in the page); so does Escape,
+    // which gives the focus back to the button that opened it.
+    await page.click("#btn-diagnostics");
+    await page.waitForSelector("dialog.vc-dialog[open]");
+    checks.owner = await page.$eval("dialog.vc-dialog[open]", (d) => d.dataset.vcDismissable);
+    await page.mouse.click(8, 540);
+    await page.waitForTimeout(300);
+    checks.backdrop = await read(() => document.querySelectorAll("dialog.vc-dialog").length);
+    await page.click("#btn-about");
+    await page.waitForSelector(".intro-modal[open]");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    checks.escape = await read(() => `${document.querySelectorAll("dialog.vc-dialog").length}:${document.activeElement?.id}`);
+    // Tooltips: each anchor has one tooltip, and vici.js has bound every one (it makes a bound tooltip a
+    // manual popover, and binds each only once), the app's own included; a hover opens exactly one.
+    checks.tooltips = await page.evaluate(() => {
+      const anchors = [...document.querySelectorAll(".vc-tooltip-anchor")];
+      const tips = anchors.map((a) => a.querySelectorAll(":scope > .vc-tooltip"));
+      return { anchors: anchors.length, single: tips.every((t) => t.length === 1), bound: tips.filter((t) => t[0]?.getAttribute("popover") === "manual").length };
+    });
+    await page.hover("[data-vc-theme-toggle]");
+    await page.waitForTimeout(400);
+    checks.tooltipOpen = await page.evaluate(() => [...document.querySelectorAll(".vc-tooltip")].filter((t) => t.matches(":popover-open")).map((t) => t.textContent));
+    await page.mouse.move(960, 700);
+    // The key field's Show key button (the app's): shown, then masked again.
+    await page.click("#btn-start");
+    await page.waitForSelector(".mode-card");
+    await page.click('.mode-card[data-mode="live"] .mode-cta button');
+    await page.waitForSelector("#api-key-input");
+    const field = () => read(() => document.querySelector("#api-key-input").type);
+    const show = page.locator(".input-row .vc-icon-button");
+    checks.keyField = [await field()];
+    await show.click();
+    checks.keyField.push(await field());
+    await show.click();
+    checks.keyField.push(await field());
+    await page.keyboard.press("Escape");
+  } catch (err) {
+    checks.FAILED = String(err.message).split("\n")[0];
+    await shot(page, "once-fail.png");
+  }
+  const seq = (xs, want) => JSON.stringify(xs) === JSON.stringify(want);
+  await finish("once: every control does its job exactly once", t, checks, [
+    [seq(checks.theme, ["light:false:null", "dark:true:dark", "light:false:light"]), `the theme toggle switches once per click and remembers it (${checks.theme})`],
+    [seq(checks.text, ["standard:false", "large:true", "standard:false"]), `Larger text switches once per click (${checks.text})`],
+    [seq(checks.view, ["group:true:false", "portfolio:false:true", "group:true:false"]), `the view buttons switch once (${checks.view})`],
+    [seq(checks.labels, ["true:on", "false:off", "true:on"]), `a legend toggle switches once (${checks.labels})`],
+    [seq(checks.speed, ["×2"]), `one replay speed pressed, the one clicked (${checks.speed})`],
+    [seq(checks.drawer, ["true:true", "false:false"]), `a tab opens the drawer, the open tab closes it (${checks.drawer})`],
+    [checks.owner === "false" && checks.backdrop === 0 && checks.escape === "0:btn-about", `a dialog closes once, by the app, on its backdrop or Escape, and Escape gives the focus back (${checks.owner}, ${checks.backdrop}, ${checks.escape})`],
+    [checks.tooltips?.anchors > 0 && checks.tooltips.single && checks.tooltips.bound === checks.tooltips.anchors && seq(checks.tooltipOpen, ["Dark theme"]),
+      `every tooltip is bound, and a hover opens one (${JSON.stringify(checks.tooltips)}, ${checks.tooltipOpen})`],
+    [seq(checks.keyField, ["password", "text", "password"]), `Show key shows and hides once per click (${checks.keyField})`]
   ]);
 }
 
