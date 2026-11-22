@@ -9,7 +9,7 @@
 //               (2009) simulation at full severity, the method of the former tools/palette.mjs, which
 //               asked for 0.10. Vici's tones fall short of that in places, so the test reports those
 //               gaps (to fix in Vici) instead of failing: the app makes up for them in form (icons,
-//               words, shapes, line patterns), as DESIGN.md describes.
+//               words, shapes, line patterns), as the README describes.
 // Usage: node tests/tokens.mjs
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -75,7 +75,7 @@ const SHELL_PAIRS = [
   ["The simulation's word on the tape's wash", "text", "bg-subtle", "text"]
 ];
 
-// The shared meanings that must stay apart (DESIGN.md §3): the states, the states against the
+// The shared meanings that must stay apart: the states, the states against the
 // network at rest and against checking, the comparison bars, and merlot against danger.
 const SHELL_SEPARATIONS = [
   ["Affected (danger) vs at risk (warning)", "danger-solid", "warning-text"],

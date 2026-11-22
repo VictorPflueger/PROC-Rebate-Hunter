@@ -1,0 +1,2597 @@
+{
+ "written_from": "Rebate Hunter 7.2.0, commit 73c00f8",
+ "files": {
+  "js/rebate.js": "93a0b4b6384151b9979ec84f2f59f52a55a56ff37c5dbb147cab25c24c3bbcea",
+  "js/erp.js": "273c0ea523a50d2a15911d2139c2ff92ca37fccac49a61d1fab45783b9e8e348",
+  "js/world.js": "3af9443525a09e7e65de6f7befb5938339c1ca2fe7d75ee2cd6cee3052ded10a",
+  "js/clock.js": "a3ba8ff80aea253d327320b94bb28646924f2c32cbd7e4e6a3508145152e4785",
+  "js/similarity.js": "5c782831ba3c28dddec173bc11c99f29b95eb28bc227f2a609ce6f7c2b26ba7e",
+  "js/format.js": "f0b6556a837ce7a42e17f242cb241160f05eaa912ca7a1e10ba1ef70fa5b7dfd",
+  "data/world.js": "f0be93fdccad6a7ab7b1cb724dd1e96834d65c90e73af53a0468b920782ece65",
+  "data/scenarios.js": "8f2ee423a0f7269f79ec9cfadb2fabbcd863a00518d70f3957358c9ad0370d6e",
+  "data/reference_cases.js": "13a7d46da396709c2ff55950c6718ef46116e4c118b372001bb503386b636869",
+  "js/tools.js": "3b8f7a7bbc368220d700dbaa99c23dafad98296474dd032130c9a3523952ba14",
+  "js/guards.js": "898257d732cead5e8f2c7b70a1437276f410a9d13a829f8fd170b21b32c83b7e",
+  "js/figures.js": "90d432b9c797ed6656ba4dd60188f243548be64b7c6b53c4e4cb44f560f1f949",
+  "js/drafts.js": "e1c6085587540ca3b186c5c8854a422a17c07e07a6ff9c69af3e73daa8adbcb9",
+  "js/payoff.js": "57a79ea3fa63a2bf4b208d38c40f73106c02e48a1a75c94cec3948b6cab0942f",
+  "js/summaries.js": "3e8d4890837326b26ad36e7c6d7b36d5321720aff615e74be8954c677c06dd48",
+  "js/opendata.js": "60ce61bbfa101b20c24caf16718acff3a512b43a0641957ad983e3905fbe6d73",
+  "js/source_health.js": "896d700dc5aed50046c1feba8760d244556effd02209249620513db032535771",
+  "js/agent.js": "74d1eb5ae23abbed969917ebccd3449b96f035f92edf8afd4f5548f257e9f81a",
+  "js/anthropic.js": "e1abe7627d58b4352aa77da297679c4f1593662f03ded3dc8520db63714a4a8a",
+  "js/sse.js": "56c0ab34b2f7041129700c0e99c8e37aa663529b8c3c57bb0247937519330fab",
+  "js/keystore.js": "026d329c385f010267c071abaa1868f00850bd7810c8321236bde499ac16bd9b",
+  "js/cost.js": "21afb140e7c7cbcab7b7597cf504643a6b63eb3168d0650df79875b200a18d69",
+  "js/prompt.js": "c56762d783a9575b72b6f93d1708a809ee681a78d6c0670edb9e4691b8628fe8",
+  "js/audit.js": "32ad21eedea5a287a0037c80d6d102bce9fed0292e000a253d39068129022464",
+  "js/run_facts.js": "5e8306c0b95188b233b5a7e7a01fa97ef2ca6693e1ee36bb25305420824adc6e",
+  "js/labels.js": "db64dd46a5f26378e81699617f156f79cb5e8f5d3f115b919b5a12c09f5ec433",
+  "js/events.js": "37631be4e57123e06ebf28cff9f8c3ea0a28ec52dd7069b8a701db2fc40a2bdc",
+  "js/simulation.js": "34e8d94fed3bc5235099e8a62cddcbdf451d9337fae237e30327b37b74cd3c4e",
+  "js/sim_vars.js": "e131ec7f21ab43885d7d974754e64d083303bc72e9bb95a752f334e56dc22ee2",
+  "js/sim_check.js": "1931560f46df76eedfe34ed5c5f01644630e652c383c111400baf0d89348e2ff",
+  "js/world_check.js": "794c8c47cdcd2df8fa77efb681cccbc9190915df33743636d592142b82146423",
+  "data/sim_runs.js": "0746b734cc0f2b0abd9cb71c456f97486e80ae45f1e28e256792d59083df3c6d",
+  "tools/build_world.mjs": "26552a5f53a27e89fac5701839f518042df1737428a74b65fa862b74484ac172",
+  "tools/check_world.mjs": "4aa1811f1797aad3c59efd3428630476bb90903f3fb0c28b6270af5791ef1ece",
+  "tools/legacy_seed.mjs": "4ba32262da91014fb2bbd1b0b2824afacc9ace733a00686a3b1afc6508c35405",
+  "tools/legacy_reference.py": "93cda4cd463914101c8f2cb84a677aa57712094fa5cff7a3d5b04da411bb3ee0",
+  "js/config.js (version masked)": "d8a6d161d8fcd15b6a69822233d54b55336e6f9b6227a2d46f48b2b50bb8fb02"
+ },
+ "figures": {
+  "SC-CISCO-MA": {
+   "first": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 0,
+     "projected_eur": 0,
+     "first_loss_day": null,
+     "first_loss_year": null,
+     "first_loss_label": null,
+     "first_loss_short": null,
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "2 register members are not linked to RA-CISCO in the vendor master (no group key): 10003 Meraki Cloud Networks Ltd., 10004 Acacia Communications Opto. GlobalCorp's year-end report does not count their spend (€15.7M in the last agreement year).",
+       "vendor_ids": [
+        "10003",
+        "10004"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "10003",
+       "10004"
+      ],
+      "link_ids": [
+       "L-10003",
+       "L-10004"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -788,
+      "end_day": -424,
+      "projected": false,
+      "spend_eur": 45400000,
+      "linked_spend_eur": 30900000,
+      "report_visible_spend_eur": 30900000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": -334,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -423,
+      "end_day": -59,
+      "projected": false,
+      "spend_eur": 48000000,
+      "linked_spend_eur": 32300000,
+      "report_visible_spend_eur": 32300000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 31,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -58,
+      "end_day": 306,
+      "projected": true,
+      "spend_eur": 49920000,
+      "linked_spend_eur": 33592000,
+      "report_visible_spend_eur": 33592000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 396,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "10001",
+      "name": "Cisco Systems Germany GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 17300000,
+       "AY": 18200000,
+       "CY": 18928000
+      }
+     },
+     {
+      "vendor_id": "10002",
+      "name": "Cisco Technology Inc.",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 13600000,
+       "AY": 14100000,
+       "CY": 14664000
+      }
+     },
+     {
+      "vendor_id": "10003",
+      "name": "Meraki Cloud Networks Ltd.",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 9100000,
+       "AY": 9500000,
+       "CY": 9880000
+      }
+     },
+     {
+      "vendor_id": "10004",
+      "name": "Acacia Communications Opto",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 5400000,
+       "AY": 6200000,
+       "CY": 6448000
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 2137920,
+     "projected_eur": 1089920,
+     "first_loss_day": 31,
+     "first_loss_year": "AY",
+     "first_loss_label": "Cisco agreement-year claim",
+     "first_loss_short": "Cisco",
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "AY",
+       "open_eur": 1048000,
+       "claim_deadline_day": 31,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 1089920,
+       "claim_deadline_day": 396,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "3 register members are not linked to RA-CISCO in the vendor master (no group key): 10003 Meraki Cloud Networks Ltd., 10004 Acacia Communications Opto, 10005 Splunk Software EMEA. GlobalCorp's year-end report does not count their spend (€20.1M in the last agreement year).",
+       "vendor_ids": [
+        "10003",
+        "10004",
+        "10005"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "10003",
+       "10004",
+       "10005"
+      ],
+      "link_ids": [
+       "L-10003",
+       "L-10004",
+       "L-10005"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -788,
+      "end_day": -424,
+      "projected": false,
+      "spend_eur": 49200000,
+      "linked_spend_eur": 30900000,
+      "report_visible_spend_eur": 30900000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": -334,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -423,
+      "end_day": -59,
+      "projected": false,
+      "spend_eur": 52400000,
+      "linked_spend_eur": 32300000,
+      "report_visible_spend_eur": 32300000,
+      "tier_pct": 2,
+      "owed_eur": 1048000,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 1048000,
+      "claim_deadline_day": 31,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -58,
+      "end_day": 306,
+      "projected": true,
+      "spend_eur": 54496000,
+      "linked_spend_eur": 33592000,
+      "report_visible_spend_eur": 33592000,
+      "tier_pct": 2,
+      "owed_eur": 1089920,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 1089920,
+      "claim_deadline_day": 396,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "10001",
+      "name": "Cisco Systems Germany GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 17300000,
+       "AY": 18200000,
+       "CY": 18928000
+      }
+     },
+     {
+      "vendor_id": "10002",
+      "name": "Cisco Technology Inc.",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 13600000,
+       "AY": 14100000,
+       "CY": 14664000
+      }
+     },
+     {
+      "vendor_id": "10003",
+      "name": "Meraki Cloud Networks Ltd.",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 9100000,
+       "AY": 9500000,
+       "CY": 9880000
+      }
+     },
+     {
+      "vendor_id": "10004",
+      "name": "Acacia Communications Opto",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 5400000,
+       "AY": 6200000,
+       "CY": 6448000
+      }
+     },
+     {
+      "vendor_id": "10005",
+      "name": "Splunk Software EMEA",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 3800000,
+       "AY": 4400000,
+       "CY": 4576000
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim the agreement year and link the three accounts",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Link 10003, 10004, 10005 to RA-CISCO (group key, effective day 20)"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 17100,
+      "recovered_eur": 2137920,
+      "residual_var_eur": 0,
+      "total_cost_eur": 17100,
+      "savings_vs_baseline_eur": 2120820,
+      "time_to_effect_days": 48,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 1048000,
+        "day": 48,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 1089920,
+        "day": 351,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "10003",
+       "10004",
+       "10005"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 13500,
+        "detail": "3 accounts, effective day 20"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Set off against open Cisco invoices and link the accounts",
+      "actions": [
+       "Set-off notice for AY on day 3, settled with the payment run after the 7-day objection period",
+       "Link 10003, 10004, 10005 to RA-CISCO (group key, effective day 20)"
+      ],
+      "action_types": [
+       "set_off",
+       "link_accounts"
+      ],
+      "set_off_objection_day": 10,
+      "response_cost_eur": 17500,
+      "recovered_eur": 2137920,
+      "residual_var_eur": 0,
+      "total_cost_eur": 17500,
+      "savings_vs_baseline_eur": 2120420,
+      "time_to_effect_days": 12,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 1048000,
+        "day": 12,
+        "via": "set-off"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 1089920,
+        "day": 351,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "10003",
+       "10004",
+       "10005"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim and set-off preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Set-off posting",
+        "cost_eur": 400,
+        "detail": "accounts payable, one-off"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 13500,
+        "detail": "3 accounts, effective day 20"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V3",
+      "name": "Claim the agreement year only",
+      "actions": [
+       "Written claim for AY (filed day 3)"
+      ],
+      "action_types": [
+       "claim"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 3600,
+      "recovered_eur": 1048000,
+      "residual_var_eur": 1089920,
+      "total_cost_eur": 1093520,
+      "savings_vs_baseline_eur": 1044400,
+      "time_to_effect_days": 48,
+      "first_loss_day": 396,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 1048000,
+        "day": 48,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       }
+      ],
+      "warnings": []
+     }
+    ]
+   }
+  },
+  "SC-MSFT-PY": {
+   "first": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 0,
+     "projected_eur": 0,
+     "first_loss_day": null,
+     "first_loss_year": null,
+     "first_loss_label": null,
+     "first_loss_short": null,
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-MSFT in the vendor master (no group key): 20002 Activision Blizzard Germany. GlobalCorp's year-end report does not count its spend (€6M in the last agreement year).",
+       "vendor_ids": [
+        "20002"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "20002"
+      ],
+      "link_ids": [
+       "L-20002"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -416,
+      "end_day": -52,
+      "projected": false,
+      "spend_eur": 47000000,
+      "linked_spend_eur": 41000000,
+      "report_visible_spend_eur": 41000000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 404,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "20001",
+      "name": "Microsoft Deutschland GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 43600000,
+       "AY": 41000000,
+       "CY": 42230000
+      }
+     },
+     {
+      "vendor_id": "20002",
+      "name": "Activision Blizzard Germany",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 7400000,
+       "AY": 6000000,
+       "CY": 6180000
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 1020000,
+     "projected_eur": 0,
+     "first_loss_day": 39,
+     "first_loss_year": "PY",
+     "first_loss_label": "Microsoft previous-year claim",
+     "first_loss_short": "Microsoft",
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 1020000,
+       "claim_deadline_day": 39,
+       "status": "open"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-MSFT in the vendor master (no group key): 20002 Activision Blizzard Germany. GlobalCorp's year-end report does not count its spend (€6M in the last agreement year).",
+       "vendor_ids": [
+        "20002"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "20002"
+      ],
+      "link_ids": [
+       "L-20002"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -781,
+      "end_day": -417,
+      "projected": false,
+      "spend_eur": 51000000,
+      "linked_spend_eur": 43600000,
+      "report_visible_spend_eur": 43600000,
+      "tier_pct": 2,
+      "owed_eur": 1020000,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 1020000,
+      "claim_deadline_day": 39,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -416,
+      "end_day": -52,
+      "projected": false,
+      "spend_eur": 47000000,
+      "linked_spend_eur": 41000000,
+      "report_visible_spend_eur": 41000000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 404,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -51,
+      "end_day": 313,
+      "projected": true,
+      "spend_eur": 48410000,
+      "linked_spend_eur": 42230000,
+      "report_visible_spend_eur": 42230000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 769,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "20001",
+      "name": "Microsoft Deutschland GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 43600000,
+       "AY": 41000000,
+       "CY": 42230000
+      }
+     },
+     {
+      "vendor_id": "20002",
+      "name": "Activision Blizzard Germany",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 7400000,
+       "AY": 6000000,
+       "CY": 6180000
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim the previous year under the look-back clause",
+      "actions": [
+       "Written claim for PY (filed day 10)"
+      ],
+      "action_types": [
+       "claim"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 12000,
+      "recovered_eur": 1020000,
+      "residual_var_eur": 0,
+      "total_cost_eur": 12000,
+      "savings_vs_baseline_eur": 1008000,
+      "time_to_effect_days": 40,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "PY",
+        "amount_eur": 1020000,
+        "day": 40,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 12000,
+        "detail": "10 person-days at €1,200"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Hand the look-back claim to a recovery-audit firm",
+      "actions": [
+       "Recovery-audit firm for PY (files day 35)"
+      ],
+      "action_types": [
+       "recovery_audit"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 183600,
+      "recovered_eur": 1020000,
+      "residual_var_eur": 0,
+      "total_cost_eur": 183600,
+      "savings_vs_baseline_eur": 836400,
+      "time_to_effect_days": 65,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "PY",
+        "amount_eur": 1020000,
+        "day": 65,
+        "via": "credit note (audit firm)"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Recovery-audit fee",
+        "cost_eur": 183600,
+        "detail": "18 % of the amount recovered"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V3",
+      "name": "Claim the previous year and link Activision",
+      "actions": [
+       "Written claim for PY (filed day 10)",
+       "Link 20002 to RA-MSFT (group key, effective day 20)"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 20500,
+      "recovered_eur": 1020000,
+      "residual_var_eur": 0,
+      "total_cost_eur": 20500,
+      "savings_vs_baseline_eur": 999500,
+      "time_to_effect_days": 40,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "PY",
+        "amount_eur": 1020000,
+        "day": 40,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [
+       "20002"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 12000,
+        "detail": "10 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       }
+      ],
+      "warnings": []
+     }
+    ]
+   }
+  },
+  "SC-APEX-NAME": {
+   "first": {
+    "ok": true,
+    "basis": "what_if",
+    "baseline": {
+     "value_at_risk_eur": 258300,
+     "projected_eur": 132300,
+     "first_loss_day": 12,
+     "first_loss_year": "AY",
+     "first_loss_label": "Apex agreement-year claim",
+     "first_loss_short": "Apex",
+     "lost_already_eur": 52500,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 52500,
+       "claim_deadline_day": -353,
+       "status": "expired"
+      },
+      {
+       "year": "AY",
+       "open_eur": 126000,
+       "claim_deadline_day": 12,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 132300,
+       "claim_deadline_day": 377,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "report_threshold",
+       "text": "The year-end report lists Apex only above €5M; the linked accounts reached €2.3M in the agreement year, the 1.5 % tier (from €2M), so nothing was reported or claimed. Counting all 2 accounts, the year reached €4.2M, the 3 % tier.",
+       "vendor_ids": [
+        "40001"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [],
+      "link_ids": []
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -797,
+      "end_day": -433,
+      "projected": false,
+      "spend_eur": 3500000,
+      "linked_spend_eur": 1800000,
+      "report_visible_spend_eur": 1800000,
+      "tier_pct": 1.5,
+      "owed_eur": 52500,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 52500,
+      "claim_deadline_day": -353,
+      "claim_deadline_date": "<date>",
+      "status": "expired"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -432,
+      "end_day": -68,
+      "projected": false,
+      "spend_eur": 4200000,
+      "linked_spend_eur": 2300000,
+      "report_visible_spend_eur": 2300000,
+      "tier_pct": 3,
+      "owed_eur": 126000,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 126000,
+      "claim_deadline_day": 12,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -67,
+      "end_day": 297,
+      "projected": true,
+      "spend_eur": 4410000,
+      "linked_spend_eur": 2415000,
+      "report_visible_spend_eur": 2415000,
+      "tier_pct": 3,
+      "owed_eur": 132300,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 132300,
+      "claim_deadline_day": 377,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "40001",
+      "name": "Apex Robotics Solutions GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 1800000,
+       "AY": 2300000,
+       "CY": 2415000
+      }
+     },
+     {
+      "vendor_id": "40002",
+      "name": "Apex Robotics Systems Ltd.",
+      "status": "unverified",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 1700000,
+       "AY": 1900000,
+       "CY": 1995000
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 70725,
+     "projected_eur": 36225,
+     "first_loss_day": 12,
+     "first_loss_year": "AY",
+     "first_loss_label": "Apex agreement-year claim",
+     "first_loss_short": "Apex",
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "AY",
+       "open_eur": 34500,
+       "claim_deadline_day": 12,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 36225,
+       "claim_deadline_day": 377,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "report_threshold",
+       "text": "The year-end report lists Apex only above €5M; the linked accounts reached €2.3M in the agreement year, the 1.5 % tier (from €2M), so nothing was reported or claimed.",
+       "vendor_ids": [
+        "40001"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [],
+      "link_ids": []
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -797,
+      "end_day": -433,
+      "projected": false,
+      "spend_eur": 1800000,
+      "linked_spend_eur": 1800000,
+      "report_visible_spend_eur": 1800000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": -353,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -432,
+      "end_day": -68,
+      "projected": false,
+      "spend_eur": 2300000,
+      "linked_spend_eur": 2300000,
+      "report_visible_spend_eur": 2300000,
+      "tier_pct": 1.5,
+      "owed_eur": 34500,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 34500,
+      "claim_deadline_day": 12,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -67,
+      "end_day": 297,
+      "projected": true,
+      "spend_eur": 2415000,
+      "linked_spend_eur": 2415000,
+      "report_visible_spend_eur": 2415000,
+      "tier_pct": 1.5,
+      "owed_eur": 36225,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 36225,
+      "claim_deadline_day": 377,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "40001",
+      "name": "Apex Robotics Solutions GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 1800000,
+       "AY": 2300000,
+       "CY": 2415000
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim the 1.5 % bonus and fix the report threshold",
+      "actions": [
+       "Written claim for AY (filed day 2)",
+       "Fix the year-end report (every tier listed, effective day 15)"
+      ],
+      "action_types": [
+       "claim",
+       "fix_report"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 6400,
+      "recovered_eur": 70725,
+      "residual_var_eur": 0,
+      "total_cost_eur": 6400,
+      "savings_vs_baseline_eur": 64325,
+      "time_to_effect_days": 32,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 34500,
+        "day": 32,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 36225,
+        "day": 327,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 2400,
+        "detail": "2 person-days at €1,200"
+       },
+       {
+        "item": "Year-end report rule change",
+        "cost_eur": 4000,
+        "detail": "effective day 15"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Set off the bonus and fix the report threshold",
+      "actions": [
+       "Set-off notice for AY on day 2, settled with the payment run after the 7-day objection period",
+       "Fix the year-end report (every tier listed, effective day 15)"
+      ],
+      "action_types": [
+       "set_off",
+       "fix_report"
+      ],
+      "set_off_objection_day": 9,
+      "response_cost_eur": 6800,
+      "recovered_eur": 70725,
+      "residual_var_eur": 0,
+      "total_cost_eur": 6800,
+      "savings_vs_baseline_eur": 63925,
+      "time_to_effect_days": 11,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 34500,
+        "day": 11,
+        "via": "set-off"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 36225,
+        "day": 327,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim and set-off preparation",
+        "cost_eur": 2400,
+        "detail": "2 person-days at €1,200"
+       },
+       {
+        "item": "Set-off posting",
+        "cost_eur": 400,
+        "detail": "accounts payable, one-off"
+       },
+       {
+        "item": "Year-end report rule change",
+        "cost_eur": 4000,
+        "detail": "effective day 15"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V3",
+      "name": "Claim the 1.5 % bonus only",
+      "actions": [
+       "Written claim for AY (filed day 2)"
+      ],
+      "action_types": [
+       "claim"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 2400,
+      "recovered_eur": 34500,
+      "residual_var_eur": 36225,
+      "total_cost_eur": 38625,
+      "savings_vs_baseline_eur": 32100,
+      "time_to_effect_days": 32,
+      "first_loss_day": 377,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 34500,
+        "day": 32,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 2400,
+        "detail": "2 person-days at €1,200"
+       }
+      ],
+      "warnings": []
+     }
+    ]
+   }
+  },
+  "SC-AVGO-VMW": {
+   "first": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 869320,
+     "projected_eur": 447320,
+     "first_loss_day": 23,
+     "first_loss_year": "AY",
+     "first_loss_label": "Broadcom agreement-year claim",
+     "first_loss_short": "Broadcom",
+     "lost_already_eur": 391000,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 391000,
+       "claim_deadline_day": -342,
+       "status": "expired"
+      },
+      {
+       "year": "AY",
+       "open_eur": 422000,
+       "claim_deadline_day": 23,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 447320,
+       "claim_deadline_day": 388,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-AVGO in the vendor master (no group key): 50003 VMware International Unlimited Co.. Neither the supplier's statement nor GlobalCorp's year-end report counts its spend (€14.9M in the last agreement year).",
+       "vendor_ids": [
+        "50003"
+       ]
+      },
+      {
+       "code": "statement_partial",
+       "text": "Broadcom's own statement credited €124,000 (1 % on the €12.4M on its record); the group reached the 2 % tier on €27.3M.",
+       "vendor_ids": [
+        "50001",
+        "50002"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "50003"
+      ],
+      "link_ids": [
+       "L-50003"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -766,
+      "end_day": -402,
+      "projected": false,
+      "spend_eur": 25500000,
+      "linked_spend_eur": 11900000,
+      "report_visible_spend_eur": 11900000,
+      "tier_pct": 2,
+      "owed_eur": 510000,
+      "credited_by_supplier_eur": 119000,
+      "claimed_by_report_eur": 0,
+      "open_eur": 391000,
+      "claim_deadline_day": -342,
+      "claim_deadline_date": "<date>",
+      "status": "expired"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -401,
+      "end_day": -37,
+      "projected": false,
+      "spend_eur": 27300000,
+      "linked_spend_eur": 12400000,
+      "report_visible_spend_eur": 12400000,
+      "tier_pct": 2,
+      "owed_eur": 546000,
+      "credited_by_supplier_eur": 124000,
+      "claimed_by_report_eur": 0,
+      "open_eur": 422000,
+      "claim_deadline_day": 23,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -36,
+      "end_day": 328,
+      "projected": true,
+      "spend_eur": 28938000,
+      "linked_spend_eur": 13144000,
+      "report_visible_spend_eur": 13144000,
+      "tier_pct": 2,
+      "owed_eur": 578760,
+      "credited_by_supplier_eur": 131440,
+      "claimed_by_report_eur": 0,
+      "open_eur": 447320,
+      "claim_deadline_day": 388,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "50001",
+      "name": "Broadcom Inc.",
+      "status": "linked",
+      "relation": "parent entity",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 7200000,
+       "AY": 7800000,
+       "CY": 8268000
+      }
+     },
+     {
+      "vendor_id": "50002",
+      "name": "Broadcom Europe Ltd",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 4700000,
+       "AY": 4600000,
+       "CY": 4876000
+      }
+     },
+     {
+      "vendor_id": "50003",
+      "name": "VMware International Unlimited Co.",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 13600000,
+       "AY": 14900000,
+       "CY": 15794000
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 1746880,
+     "projected_eur": 898880,
+     "first_loss_day": 23,
+     "first_loss_year": "AY",
+     "first_loss_label": "Broadcom agreement-year claim",
+     "first_loss_short": "Broadcom",
+     "lost_already_eur": 784000,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 784000,
+       "claim_deadline_day": -342,
+       "status": "expired"
+      },
+      {
+       "year": "AY",
+       "open_eur": 848000,
+       "claim_deadline_day": 23,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 898880,
+       "claim_deadline_day": 388,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "2 register members are not linked to RA-AVGO in the vendor master (no group key): 50003 VMware International Unlimited Co., 50004 VMware Global Inc.. Neither the supplier's statement nor GlobalCorp's year-end report counts their spend (€20M in the last agreement year).",
+       "vendor_ids": [
+        "50003",
+        "50004"
+       ]
+      },
+      {
+       "code": "statement_partial",
+       "text": "Broadcom's own statement credited €124,000 (1 % on the €12.4M on its record); the group reached the 3 % tier on €32.4M.",
+       "vendor_ids": [
+        "50001",
+        "50002"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "50003",
+       "50004"
+      ],
+      "link_ids": [
+       "L-50003",
+       "L-50004"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -766,
+      "end_day": -402,
+      "projected": false,
+      "spend_eur": 30100000,
+      "linked_spend_eur": 11900000,
+      "report_visible_spend_eur": 11900000,
+      "tier_pct": 3,
+      "owed_eur": 903000,
+      "credited_by_supplier_eur": 119000,
+      "claimed_by_report_eur": 0,
+      "open_eur": 784000,
+      "claim_deadline_day": -342,
+      "claim_deadline_date": "<date>",
+      "status": "expired"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -401,
+      "end_day": -37,
+      "projected": false,
+      "spend_eur": 32400000,
+      "linked_spend_eur": 12400000,
+      "report_visible_spend_eur": 12400000,
+      "tier_pct": 3,
+      "owed_eur": 972000,
+      "credited_by_supplier_eur": 124000,
+      "claimed_by_report_eur": 0,
+      "open_eur": 848000,
+      "claim_deadline_day": 23,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -36,
+      "end_day": 328,
+      "projected": true,
+      "spend_eur": 34344000,
+      "linked_spend_eur": 13144000,
+      "report_visible_spend_eur": 13144000,
+      "tier_pct": 3,
+      "owed_eur": 1030320,
+      "credited_by_supplier_eur": 131440,
+      "claimed_by_report_eur": 0,
+      "open_eur": 898880,
+      "claim_deadline_day": 388,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "50001",
+      "name": "Broadcom Inc.",
+      "status": "linked",
+      "relation": "parent entity",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 7200000,
+       "AY": 7800000,
+       "CY": 8268000
+      }
+     },
+     {
+      "vendor_id": "50002",
+      "name": "Broadcom Europe Ltd",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 4700000,
+       "AY": 4600000,
+       "CY": 4876000
+      }
+     },
+     {
+      "vendor_id": "50003",
+      "name": "VMware International Unlimited Co.",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 13600000,
+       "AY": 14900000,
+       "CY": 15794000
+      }
+     },
+     {
+      "vendor_id": "50004",
+      "name": "VMware Global Inc.",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 4600000,
+       "AY": 5100000,
+       "CY": 5406000
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim the statement difference and link both VMware accounts",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Link 50003, 50004 to RA-AVGO (group key, effective day 20), and notify Broadcom so its statement counts them"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 14600,
+      "recovered_eur": 1746880,
+      "residual_var_eur": 0,
+      "total_cost_eur": 14600,
+      "savings_vs_baseline_eur": 1732280,
+      "time_to_effect_days": 48,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 848000,
+        "day": 48,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 898880,
+        "day": 373,
+        "via": "supplier statement"
+       }
+      ],
+      "linked_vendor_ids": [
+       "50003",
+       "50004"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 11000,
+        "detail": "2 accounts, effective day 20"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Claim the statement difference only",
+      "actions": [
+       "Written claim for AY (filed day 3)"
+      ],
+      "action_types": [
+       "claim"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 3600,
+      "recovered_eur": 848000,
+      "residual_var_eur": 898880,
+      "total_cost_eur": 902480,
+      "savings_vs_baseline_eur": 844400,
+      "time_to_effect_days": 48,
+      "first_loss_day": 388,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 848000,
+        "day": 48,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V3",
+      "name": "Link both VMware accounts only",
+      "actions": [
+       "Link 50003, 50004 to RA-AVGO (group key, effective day 20), and notify Broadcom so its statement counts them"
+      ],
+      "action_types": [
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 11000,
+      "recovered_eur": 898880,
+      "residual_var_eur": 848000,
+      "total_cost_eur": 859000,
+      "savings_vs_baseline_eur": 887880,
+      "time_to_effect_days": 373,
+      "first_loss_day": 23,
+      "cash_in": [
+       {
+        "year": "CY",
+        "amount_eur": 898880,
+        "day": 373,
+        "via": "supplier statement"
+       }
+      ],
+      "linked_vendor_ids": [
+       "50003",
+       "50004"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 11000,
+        "detail": "2 accounts, effective day 20"
+       }
+      ],
+      "warnings": []
+     }
+    ]
+   }
+  },
+  "SC-SCHN-AVEVA": {
+   "first": {
+    "ok": true,
+    "basis": "partial",
+    "baseline": {
+     "value_at_risk_eur": 379600,
+     "projected_eur": 379600,
+     "first_loss_day": 374,
+     "first_loss_year": "CY",
+     "first_loss_label": "Schneider Electric running-year claim",
+     "first_loss_short": "Schneider",
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "CY",
+       "open_eur": 379600,
+       "claim_deadline_day": 374,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-SCHN in the vendor master (no group key): 60003 AVEVA Solutions Ltd. GlobalCorp's year-end report does not count its spend (€3.4M in the last agreement year).",
+       "vendor_ids": [
+        "60003"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "60003"
+      ],
+      "link_ids": [
+       "L-60003"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -810,
+      "end_day": -446,
+      "projected": false,
+      "spend_eur": 12300000,
+      "linked_spend_eur": 9900000,
+      "report_visible_spend_eur": 9900000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": -356,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -445,
+      "end_day": -81,
+      "projected": false,
+      "spend_eur": 14600000,
+      "linked_spend_eur": 11200000,
+      "report_visible_spend_eur": 11200000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": 9,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -80,
+      "end_day": 284,
+      "projected": true,
+      "spend_eur": 15184000,
+      "linked_spend_eur": 11648000,
+      "report_visible_spend_eur": 11648000,
+      "tier_pct": 2.5,
+      "owed_eur": 379600,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 379600,
+      "claim_deadline_day": 374,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "60001",
+      "name": "Schneider Electric GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 9900000,
+       "AY": 11200000,
+       "CY": 11648000
+      }
+     },
+     {
+      "vendor_id": "60003",
+      "name": "AVEVA Solutions Ltd",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 2400000,
+       "AY": 3400000,
+       "CY": 3536000
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 892500,
+     "projected_eur": 455000,
+     "first_loss_day": 9,
+     "first_loss_year": "AY",
+     "first_loss_label": "Schneider Electric agreement-year claim",
+     "first_loss_short": "Schneider",
+     "lost_already_eur": 0,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "AY",
+       "open_eur": 437500,
+       "claim_deadline_day": 9,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 455000,
+       "claim_deadline_day": 374,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-SCHN in the vendor master (no group key): 60003 AVEVA Solutions Ltd. GlobalCorp's year-end report does not count its spend (€3.4M in the last agreement year).",
+       "vendor_ids": [
+        "60003"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "60003"
+      ],
+      "link_ids": [
+       "L-60003"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -810,
+      "end_day": -446,
+      "projected": false,
+      "spend_eur": 14900000,
+      "linked_spend_eur": 12500000,
+      "report_visible_spend_eur": 12500000,
+      "tier_pct": 0,
+      "owed_eur": 0,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 0,
+      "claim_deadline_day": -356,
+      "claim_deadline_date": "<date>",
+      "status": "not_owed"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -445,
+      "end_day": -81,
+      "projected": false,
+      "spend_eur": 17500000,
+      "linked_spend_eur": 14100000,
+      "report_visible_spend_eur": 14100000,
+      "tier_pct": 2.5,
+      "owed_eur": 437500,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 437500,
+      "claim_deadline_day": 9,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -80,
+      "end_day": 284,
+      "projected": true,
+      "spend_eur": 18200000,
+      "linked_spend_eur": 14664000,
+      "report_visible_spend_eur": 14664000,
+      "tier_pct": 2.5,
+      "owed_eur": 455000,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 455000,
+      "claim_deadline_day": 374,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "60001",
+      "name": "Schneider Electric GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 9900000,
+       "AY": 11200000,
+       "CY": 11648000
+      }
+     },
+     {
+      "vendor_id": "60002",
+      "name": "Schneider Electric Ltd",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 2600000,
+       "AY": 2900000,
+       "CY": 3016000
+      }
+     },
+     {
+      "vendor_id": "60003",
+      "name": "AVEVA Solutions Ltd",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 2400000,
+       "AY": 3400000,
+       "CY": 3536000
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim this week and link AVEVA",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Link 60003 to RA-SCHN (group key, effective day 20)"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 12100,
+      "recovered_eur": 892500,
+      "residual_var_eur": 0,
+      "total_cost_eur": 12100,
+      "savings_vs_baseline_eur": 880400,
+      "time_to_effect_days": 33,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 437500,
+        "day": 33,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 455000,
+        "day": 314,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "60003"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Set off this week and link AVEVA",
+      "actions": [
+       "Set-off notice for AY on day 3, settled with the payment run after the 7-day objection period",
+       "Link 60003 to RA-SCHN (group key, effective day 20)"
+      ],
+      "action_types": [
+       "set_off",
+       "link_accounts"
+      ],
+      "set_off_objection_day": 10,
+      "response_cost_eur": 12500,
+      "recovered_eur": 892500,
+      "residual_var_eur": 0,
+      "total_cost_eur": 12500,
+      "savings_vs_baseline_eur": 880000,
+      "time_to_effect_days": 12,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 437500,
+        "day": 12,
+        "via": "set-off"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 455000,
+        "day": 314,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "60003"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim and set-off preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Set-off posting",
+        "cost_eur": 400,
+        "detail": "accounts payable, one-off"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V3",
+      "name": "Recovery-audit firm and link AVEVA",
+      "actions": [
+       "Recovery-audit firm for AY (files day 35)",
+       "Link 60003 to RA-SCHN (group key, effective day 20)"
+      ],
+      "action_types": [
+       "recovery_audit",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 8500,
+      "recovered_eur": 455000,
+      "residual_var_eur": 437500,
+      "total_cost_eur": 446000,
+      "savings_vs_baseline_eur": 446500,
+      "time_to_effect_days": 314,
+      "first_loss_day": 9,
+      "cash_in": [
+       {
+        "year": "CY",
+        "amount_eur": 455000,
+        "day": 314,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "60003"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       }
+      ],
+      "warnings": [
+       "variants[2].actions[0]: the audit firm files on day 35, after the AY deadline on day 9; it recovers nothing for AY, so no fee is due."
+      ]
+     }
+    ]
+   }
+  },
+  "SC-CRM-FX": {
+   "first": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 1394943,
+     "projected_eur": 714483,
+     "first_loss_day": 27,
+     "first_loss_year": "AY",
+     "first_loss_label": "Salesforce agreement-year claim",
+     "first_loss_short": "Salesforce",
+     "lost_already_eur": 611910,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 611910,
+       "claim_deadline_day": -338,
+       "status": "expired"
+      },
+      {
+       "year": "AY",
+       "open_eur": 680460,
+       "claim_deadline_day": 27,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 714483,
+       "claim_deadline_day": 392,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "report_currency",
+       "text": "The year-end report counts EUR invoices only: 70003 (GBP) is left out (€5.38M at the contract rate in the last agreement year).",
+       "vendor_ids": [
+        "70003"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [],
+      "link_ids": []
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -792,
+      "end_day": -428,
+      "projected": false,
+      "spend_eur": 20397000,
+      "linked_spend_eur": 20397000,
+      "report_visible_spend_eur": 15600000,
+      "tier_pct": 3,
+      "owed_eur": 611910,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 611910,
+      "claim_deadline_day": -338,
+      "claim_deadline_date": "<date>",
+      "status": "expired"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -427,
+      "end_day": -63,
+      "projected": false,
+      "spend_eur": 22682000,
+      "linked_spend_eur": 22682000,
+      "report_visible_spend_eur": 17300000,
+      "tier_pct": 3,
+      "owed_eur": 680460,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 680460,
+      "claim_deadline_day": 27,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -62,
+      "end_day": 302,
+      "projected": true,
+      "spend_eur": 23816100,
+      "linked_spend_eur": 23816100,
+      "report_visible_spend_eur": 18165000,
+      "tier_pct": 3,
+      "owed_eur": 714483,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 714483,
+      "claim_deadline_day": 392,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "70001",
+      "name": "salesforce.com Germany GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 12100000,
+       "AY": 13400000,
+       "CY": 14070000
+      }
+     },
+     {
+      "vendor_id": "70002",
+      "name": "Slack Technologies Ltd",
+      "status": "linked",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 3500000,
+       "AY": 3900000,
+       "CY": 4095000
+      }
+     },
+     {
+      "vendor_id": "70003",
+      "name": "Salesforce UK Ltd",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "GBP",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 4797000,
+       "AY": 5382000,
+       "CY": 5651100
+      }
+     }
+    ],
+    "variants": []
+   },
+   "finding": {
+    "ok": true,
+    "basis": "verified",
+    "baseline": {
+     "value_at_risk_eur": 1517267,
+     "projected_eur": 777137,
+     "first_loss_day": 27,
+     "first_loss_year": "AY",
+     "first_loss_label": "Salesforce agreement-year claim",
+     "first_loss_short": "Salesforce",
+     "lost_already_eur": 668070,
+     "beyond_horizon_eur": 0,
+     "claims": [
+      {
+       "year": "PY",
+       "open_eur": 668070,
+       "claim_deadline_day": -338,
+       "status": "expired"
+      },
+      {
+       "year": "AY",
+       "open_eur": 740130,
+       "claim_deadline_day": 27,
+       "status": "open"
+      },
+      {
+       "year": "CY",
+       "open_eur": 777137,
+       "claim_deadline_day": 392,
+       "status": "projected"
+      }
+     ],
+     "causes": [
+      {
+       "code": "unlinked_members",
+       "text": "1 register member is not linked to RA-CRM in the vendor master (no group key): 70004 Tableau Software UK. GlobalCorp's year-end report does not count its spend (€1.99M in the last agreement year).",
+       "vendor_ids": [
+        "70004"
+       ]
+      },
+      {
+       "code": "report_currency",
+       "text": "The year-end report counts EUR invoices only: 70003 (GBP), 70004 (GBP) are left out (€7.37M at the contract rate in the last agreement year).",
+       "vendor_ids": [
+        "70003",
+        "70004"
+       ]
+      }
+     ],
+     "affected": {
+      "vendor_ids": [
+       "70004"
+      ],
+      "link_ids": [
+       "L-70004"
+      ]
+     }
+    },
+    "years": [
+     {
+      "year": "PY",
+      "period": "<date> to <date>",
+      "start_day": -792,
+      "end_day": -428,
+      "projected": false,
+      "spend_eur": 22269000,
+      "linked_spend_eur": 20397000,
+      "report_visible_spend_eur": 15600000,
+      "tier_pct": 3,
+      "owed_eur": 668070,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 668070,
+      "claim_deadline_day": -338,
+      "claim_deadline_date": "<date>",
+      "status": "expired"
+     },
+     {
+      "year": "AY",
+      "period": "<date> to <date>",
+      "start_day": -427,
+      "end_day": -63,
+      "projected": false,
+      "spend_eur": 24671000,
+      "linked_spend_eur": 22682000,
+      "report_visible_spend_eur": 17300000,
+      "tier_pct": 3,
+      "owed_eur": 740130,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 740130,
+      "claim_deadline_day": 27,
+      "claim_deadline_date": "<date>",
+      "status": "open"
+     },
+     {
+      "year": "CY",
+      "period": "<date> to <date>",
+      "start_day": -62,
+      "end_day": 302,
+      "projected": true,
+      "spend_eur": 25904550,
+      "linked_spend_eur": 23816100,
+      "report_visible_spend_eur": 18165000,
+      "tier_pct": 3,
+      "owed_eur": 777137,
+      "credited_by_supplier_eur": 0,
+      "claimed_by_report_eur": 0,
+      "open_eur": 777137,
+      "claim_deadline_day": 392,
+      "claim_deadline_date": "<date>",
+      "status": "projected"
+     }
+    ],
+    "members": [
+     {
+      "vendor_id": "70001",
+      "name": "salesforce.com Germany GmbH",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 12100000,
+       "AY": 13400000,
+       "CY": 14070000
+      }
+     },
+     {
+      "vendor_id": "70002",
+      "name": "Slack Technologies Ltd",
+      "status": "linked",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "EUR",
+      "company_code": "CC-1000",
+      "spend_eur": {
+       "PY": 3500000,
+       "AY": 3900000,
+       "CY": 4095000
+      }
+     },
+     {
+      "vendor_id": "70003",
+      "name": "Salesforce UK Ltd",
+      "status": "linked",
+      "relation": "subsidiary",
+      "since": null,
+      "currency": "GBP",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 4797000,
+       "AY": 5382000,
+       "CY": 5651100
+      }
+     },
+     {
+      "vendor_id": "70004",
+      "name": "Tableau Software UK",
+      "status": "register",
+      "relation": "acquired",
+      "since": "<date>",
+      "currency": "GBP",
+      "company_code": "CC-2000",
+      "spend_eur": {
+       "PY": 1872000,
+       "AY": 1989000,
+       "CY": 2088450
+      }
+     }
+    ],
+    "variants": [
+     {
+      "variant_id": "V1",
+      "name": "Claim, link Tableau and fix the report's currency rule",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Link 70004 to RA-CRM (group key, effective day 20)",
+       "Fix the year-end report (all currencies at contract rates, effective day 15)"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts",
+       "fix_report"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 16100,
+      "recovered_eur": 1517267,
+      "residual_var_eur": 0,
+      "total_cost_eur": 16100,
+      "savings_vs_baseline_eur": 1501167,
+      "time_to_effect_days": 33,
+      "first_loss_day": null,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 740130,
+        "day": 33,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 777137,
+        "day": 332,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [
+       "70004"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       },
+       {
+        "item": "Year-end report rule change",
+        "cost_eur": 4000,
+        "detail": "effective day 15"
+       }
+      ],
+      "warnings": []
+     },
+     {
+      "variant_id": "V2",
+      "name": "Claim and fix the currency rule only",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Fix the year-end report (all currencies at contract rates, effective day 15)"
+      ],
+      "action_types": [
+       "claim",
+       "fix_report"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 7600,
+      "recovered_eur": 1454613,
+      "residual_var_eur": 62654,
+      "total_cost_eur": 70254,
+      "savings_vs_baseline_eur": 1447013,
+      "time_to_effect_days": 33,
+      "first_loss_day": 392,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 740130,
+        "day": 33,
+        "via": "credit note"
+       },
+       {
+        "year": "CY",
+        "amount_eur": 714483,
+        "day": 332,
+        "via": "year-end claim"
+       }
+      ],
+      "linked_vendor_ids": [],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Year-end report rule change",
+        "cost_eur": 4000,
+        "detail": "effective day 15"
+       }
+      ],
+      "warnings": [
+       "V2: €62,654 of the running year stays open after the fix (accounts still unlinked)."
+      ]
+     },
+     {
+      "variant_id": "V3",
+      "name": "Claim and link Tableau only",
+      "actions": [
+       "Written claim for AY (filed day 3)",
+       "Link 70004 to RA-CRM (group key, effective day 20)"
+      ],
+      "action_types": [
+       "claim",
+       "link_accounts"
+      ],
+      "set_off_objection_day": null,
+      "response_cost_eur": 12100,
+      "recovered_eur": 740130,
+      "residual_var_eur": 777137,
+      "total_cost_eur": 789237,
+      "savings_vs_baseline_eur": 728030,
+      "time_to_effect_days": 33,
+      "first_loss_day": 392,
+      "cash_in": [
+       {
+        "year": "AY",
+        "amount_eur": 740130,
+        "day": 33,
+        "via": "credit note"
+       }
+      ],
+      "linked_vendor_ids": [
+       "70004"
+      ],
+      "cost_breakdown": [
+       {
+        "item": "Claim preparation",
+        "cost_eur": 3600,
+        "detail": "3 person-days at €1,200"
+       },
+       {
+        "item": "Vendor master: group key and agreement link",
+        "cost_eur": 8500,
+        "detail": "1 account, effective day 20"
+       }
+      ],
+      "warnings": [
+       "V3: €777,137 of the running year stays open after the fix (the report still leaves currencies out)."
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

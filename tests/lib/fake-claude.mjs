@@ -1,5 +1,5 @@
 // A scripted stand-in for POST /v1/messages that streams realistic SSE and checks every request
-// against the protocol rules the live agent must follow (TECH_NOTES §3).
+// against the protocol rules the live agent must follow (7.2.0's technical notes, §3, in the git history).
 import { isDeepStrictEqual } from "node:util";
 
 export function sseFor({ id, model = "claude-sonnet-5-5", blocks, stop, usage = {}, cut = null, midError = null }) {

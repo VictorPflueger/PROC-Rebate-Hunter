@@ -1,33 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- The browser enforces where this page may connect: the API key can only ever reach api.anthropic.com,
-       and open data only the three documented hosts (TECH_NOTES §6). Scripts, styles, fonts and images
-       come from this site only: the app loads nothing from a third party. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://api.anthropic.com https://api.gleif.org https://www.wikidata.org https://api.frankfurter.dev; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <!-- Everything comes from this site. The page may connect to one host, api.anthropic.com, and only
+       when a visitor starts a live run on their own key: the simulation connects nowhere. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://api.anthropic.com; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Rebate Hunter finds supplier rebates a fictional industrial group earned but never claimed, verifies who belongs to each supplier group, calculates what is owed and by when, and proposes costed recovery options for human approval.">
-  <title>Rebate Hunter — Procurement Rebate Hunter</title>
+  <meta name="description" content="Rebate Hunter shows an AI agent finding supplier rebates a fictional company earned but never claimed, in five steps: it checks who belongs to the supplier group, lets an engine count what is owed and by when, and proposes costed options for a person to approve.">
+  <title>Rebate Hunter · Agentic AI prototype</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-
-  <!-- The look comes from Victor's design system Vici, copied unchanged into vici/ (vici/README.md).
-       It sits in cascade layers, so the app's own stylesheets below refine it without !important. -->
   <link rel="stylesheet" href="vici/dist/vici.min.css">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/board.css">
-  <link rel="stylesheet" href="css/console.css">
-  <link rel="stylesheet" href="css/drawer.css">
-  <link rel="stylesheet" href="css/modals.css">
-
-  <!-- The theme before the page is drawn (light unless the visitor chose dark), then Vici's script. -->
+  <link rel="stylesheet" href="css/app.css">
   <script src="js/theme.js"></script>
   <script src="vici/dist/vici.js" defer></script>
-
-  <!-- Synthetic company and scripted replays: plain scripts that set window globals (no fetch needed). -->
   <script src="data/world.js" defer></script>
   <script src="data/scenarios.js" defer></script>
   <script src="data/reference_cases.js" defer></script>
@@ -35,62 +22,222 @@
   <script type="module" src="js/main.js"></script>
 </head>
 <body class="app-shell">
-  <a class="vc-skip-link skip-link" href="#console">Skip to the agent console</a>
+  <a class="vc-skip-link" href="#story">Skip to the step</a>
 
   <header class="app-header">
     <div class="brand">
       <span class="vc-cell vc-cell--lilac" aria-hidden="true"><span class="vc-icon vc-icon--search"></span></span>
-      <div class="brand-text">
-        <span class="brand-name">Rebate Hunter</span>
-        <span class="brand-sub">Rebate agent for GlobalCorp SE (fictional)</span>
+      <span class="brand-name">Rebate Hunter</span>
+    </div>
+
+    <div class="header-actions">
+      <span class="vc-tooltip-anchor">
+        <span class="vc-tag vc-tag--lg mode-tag" id="mode-tag" data-mode="simulation" tabindex="0" aria-describedby="tip-mode"><span id="mode-text">SIMULATION</span></span>
+        <span class="vc-tooltip vc-tooltip--bottom" role="tooltip" id="tip-mode">A replay of the agent's run: the company's records and the rebate engine answer for real, the agent's words and web sources are written for the replay, and no model is called. Start agent offers a live run.</span>
+      </span>
+      <button type="button" class="vc-button vc-button--secondary" data-vc-guide-open="guide"><span class="vc-icon vc-icon--info" aria-hidden="true"></span>How it works</button>
+      <span class="vc-tooltip-anchor">
+        <button type="button" class="vc-icon-button" data-vc-theme-toggle aria-labelledby="tip-theme"><span class="vc-icon vc-icon--moon vc-when-light" aria-hidden="true"></span><span class="vc-icon vc-icon--sun vc-when-dark" aria-hidden="true"></span></button>
+        <span class="vc-tooltip vc-tooltip--bottom" role="tooltip" id="tip-theme">Dark or light theme</span>
+      </span>
+    </div>
+
+    <div class="kpis" role="group" aria-label="Key figures">
+      <div class="kpi vc-stat" data-vc-kpi="Rebate at stake" data-tone="affected">
+        <p class="vc-stat__label">Rebate at stake</p>
+        <p class="vc-stat__value kpi-value">€2.14M</p>
+        <p class="vc-stat__note kpi-note">lost if nobody claims</p>
+      </div>
+      <div class="kpi vc-stat" data-vc-kpi="Claim deadline" data-tone="at_risk">
+        <p class="vc-stat__label">Claim deadline</p>
+        <p class="vc-stat__value kpi-value">31 days</p>
+        <p class="vc-stat__note kpi-note">Cisco's claim for the closed year</p>
+      </div>
+      <div class="kpi vc-stat" data-vc-kpi="Detection → decision">
+        <p class="vc-stat__label">Detection → decision</p>
+        <p class="vc-stat__value kpi-value vc-tabular">0:00</p>
+        <p class="vc-stat__note kpi-note">starts with the tip</p>
+      </div>
+      <div class="kpi vc-stat" data-vc-kpi="Session cost">
+        <p class="vc-stat__label">Session cost</p>
+        <p class="vc-stat__value kpi-value">≈&nbsp;€0.14</p>
+        <p class="vc-stat__note kpi-note">estimated for a live run</p>
       </div>
     </div>
-
-    <div class="header-badges">
-      <span id="mode-badge" class="vc-tag mode-badge" data-mode="none" role="status" aria-live="polite" title="Choose a mode with Start agent">No run active</span>
-      <!-- Vici's theme toggle (vici.js switches the theme and remembers the choice). -->
-      <span class="vc-tooltip-anchor">
-        <button type="button" class="vc-icon-button theme-toggle" data-vc-theme-toggle aria-labelledby="tip-theme"><span class="vc-icon vc-icon--moon vc-when-light" aria-hidden="true"></span><span class="vc-icon vc-icon--sun vc-when-dark" aria-hidden="true"></span></button>
-        <span class="vc-tooltip vc-tooltip--bottom" role="tooltip" id="tip-theme">Dark theme</span>
-      </span>
-      <span class="vc-tag vc-tag--feature ai-disclosure" title="Rebate Hunter is an AI system. Its analysis can be wrong. Every action is a draft that waits for your approval, and nothing is ever sent to a real company.">
-        <span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>
-        <span><span class="long">You are interacting with an </span>AI system</span>
-      </span>
-    </div>
-
-    <div id="kpis" class="kpis" role="group" aria-label="Key figures for the current run"></div>
   </header>
 
-  <nav id="controls" class="controls" aria-label="Run controls"></nav>
+  <div class="intro">
+    <p class="intro-text">An AI agent finds supplier rebates a fictional company earned but never claimed, and sends nothing without your approval.</p>
+    <p class="vc-byline">
+      <span class="vc-byline__label">Built by</span>
+      <a class="vc-byline__person" href="https://www.linkedin.com/in/victorpflueger" rel="author noopener" target="_blank">
+        <span class="vc-avatar vc-avatar--xs"><img src="vici/assets/brand/portrait-96.jpg" alt="" width="96" height="96"></span>
+        <span class="vc-byline__name">Victor Pflüger</span>
+        <img class="vc-platform-mark" src="vici/assets/marks/linkedin.png" alt="" width="840" height="779">
+        <span class="vc-visually-hidden"> on LinkedIn (opens in a new tab)</span>
+      </a>
+      <span class="vc-tooltip-anchor">
+        <a class="vc-byline__icon" href="https://victorpflueger.github.io/VIP/index.html" rel="author noopener" target="_blank" aria-label="Victor Pflüger's website (opens in a new tab)"><span class="vc-icon vc-icon--globe-hex" aria-hidden="true"></span></a>
+        <span class="vc-tooltip vc-tooltip--bottom" aria-hidden="true">Website</span>
+      </span>
+    </p>
+  </div>
+
+  <nav class="talk-track" aria-label="Talk track">
+    <button type="button" class="vc-button vc-button--secondary play" id="play" data-state="play"><span class="vc-icon vc-icon--play" aria-hidden="true"></span><span id="play-text">Play</span></button>
+    <ol class="vc-stepper steps" id="steps">
+      <li class="vc-step" data-step="spot"><button type="button" class="vc-step__button"><span class="vc-step__marker" aria-hidden="true">1</span><span class="vc-step__label">Spot<span class="vc-step__hint">the tip</span></span></button></li>
+      <li class="vc-step" data-step="check"><button type="button" class="vc-step__button"><span class="vc-step__marker" aria-hidden="true">2</span><span class="vc-step__label">Check<span class="vc-step__hint">who belongs</span></span></button></li>
+      <li class="vc-step" data-step="calculate"><button type="button" class="vc-step__button"><span class="vc-step__marker" aria-hidden="true">3</span><span class="vc-step__label">Calculate<span class="vc-step__hint">what is owed</span></span></button></li>
+      <li class="vc-step" data-step="propose"><button type="button" class="vc-step__button"><span class="vc-step__marker" aria-hidden="true">4</span><span class="vc-step__label">Propose<span class="vc-step__hint">your decision</span></span></button></li>
+      <li class="vc-step" data-step="prepare"><button type="button" class="vc-step__button"><span class="vc-step__marker" aria-hidden="true">5</span><span class="vc-step__label">Prepare<span class="vc-step__hint">the drafts</span></span></button></li>
+    </ol>
+    <div class="scenario">
+      <button type="button" class="vc-button vc-button--ghost scenario-button" id="scenario-button" aria-haspopup="menu" aria-expanded="false" aria-controls="scenario-menu"><span class="vc-visually-hidden">Case: </span><span id="scenario-name">Cisco acquisitions</span><span class="vc-icon vc-icon--chevron-down" aria-hidden="true"></span></button>
+      <div class="vc-menu scenario-menu" id="scenario-menu" role="menu" aria-labelledby="scenario-button" hidden></div>
+    </div>
+    <button type="button" class="vc-button vc-button--secondary start" id="start" data-vc-live><span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>Start agent</button>
+    <span class="vc-tag vc-tag--feature ai-notice"><span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>You are interacting with an AI system</span>
+  </nav>
+
+  <p class="vc-visually-hidden" id="announce" aria-live="polite"></p>
 
   <main class="workspace">
-    <!-- The workspace's first panel (layout class shared with the Navigator, where it holds the map)
-         holds the rebate board: supplier groups, their vendor accounts and the rebate thresholds. -->
-    <section class="map-panel" aria-label="Rebate board: supplier groups, their vendor accounts and the rebate thresholds">
-      <div id="board"></div>
+    <section class="stage" aria-labelledby="stage-title">
+      <h2 class="stage-title" id="stage-title">What the year-end report counted for Cisco</h2>
+      <div class="stage-body" id="stage-body"></div>
     </section>
-    <section id="console" class="console-panel" aria-label="Agent console" tabindex="-1"></section>
+
+    <section class="story" id="story" aria-labelledby="story-title" tabindex="-1">
+      <h2 class="story-title" id="story-title" tabindex="-1">Cisco acquisitions invoiced on separate accounts</h2>
+      <p class="story-lead" id="story-lead"></p>
+      <div class="story-card" id="story-card"></div>
+      <p class="story-working" id="story-working" hidden><span class="vc-spinner vc-spinner--sm" aria-hidden="true"></span><span id="story-working-text"></span></p>
+      <figure class="agent" id="agent" hidden>
+        <figcaption><span class="vc-tag vc-tag--feature"><span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>Agent</span><span class="agent-note" id="agent-note">replayed, not live</span></figcaption>
+        <div class="agent-words" id="agent-words"></div>
+      </figure>
+      <details class="log" id="log" hidden><summary id="log-summary">Decision log</summary><ol id="log-list"></ol></details>
+      <!-- The request for interaction, right under what just happened: what happens next or what to do,
+           in words, with its one action. While Play reads a step, its foot fills (--fill). -->
+      <div class="story-foot">
+        <div class="move" id="move" data-tone="working" role="group" aria-label="What to do next">
+          <p class="move-text" id="move-text"><strong>Starting.</strong> The agent reads the tip.</p>
+          <span class="move-note" id="move-note" aria-hidden="true"></span>
+          <div class="move-actions" id="move-actions"></div>
+          <span class="move-fill" id="move-fill" aria-hidden="true" hidden></span>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <section id="drawer" class="drawer" aria-label="Options, outbox and audit log"></section>
+  <!-- How it works: Vici's guide. vici.js builds the chapter rail and opens it once per browser tab;
+       ?guide=0 keeps it closed, ?guide=present opens the talk track. Every figure in it is the engine's
+       for the Cisco case: js/main.js writes them again from the run on screen, and tests/docs.mjs checks
+       that the ones written here are equal. -->
+  <dialog class="vc-dialog vc-guide" id="guide" aria-labelledby="guide-title" data-vc-guide data-vc-guide-auto data-vc-guide-count="{n} of {total}">
+    <header class="vc-dialog__header">
+      <h2 class="vc-dialog__title" id="guide-title">How the prototype works</h2>
+      <button type="button" class="vc-icon-button" data-vc-close aria-label="Close"><span class="vc-icon vc-icon--close" aria-hidden="true"></span></button>
+    </header>
+    <div class="vc-guide__chapters">
+      <section class="vc-guide__chapter" data-vc-chapter="what" data-vc-nav="What it does">
+        <h3>Finds rebates a company earned but never claimed</h3>
+        <p class="vc-guide__lead">Suppliers pay a rebate once a year's purchases pass a threshold. When an acquired company bills on its own account, nobody counts it. The agent finds that, works out what is owed and by when, and you decide.</p>
+        <div class="vc-table-wrap"><table class="vc-table vc-table--compact">
+          <caption>The case it opens on</caption>
+          <tbody>
+            <tr><th scope="row">The tip</th><td>Meraki and Acacia, both owned by Cisco, bill on their own accounts and never count towards Cisco's rebate</td></tr>
+            <tr><th scope="row">The agreement</th><td>2&nbsp;% of the year's purchases once they reach <span data-fig="threshold">€50M</span></td></tr>
+            <tr><th scope="row">What the agent finds</th><td><span data-fig="stake">€2.14M</span> at stake; the first claim lapses in <span data-fig="deadline">31 days</span></td></tr>
+            <tr><th scope="row">Its proposal</th><td>Option <span data-fig="rec-letter">A</span> for <span data-fig="rec-cost">€17,100</span> claims all of it, once you approve</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+      <section class="vc-guide__chapter" data-vc-chapter="how" data-vc-nav="How it works">
+        <h3>Five steps and the four figures they move</h3>
+        <p class="vc-guide__lead">The agent spots the tip, checks who belongs to the supplier group, lets an engine count what is owed, proposes three costed options and drafts what you approve. The four figures at the top say what that is worth.</p>
+        <div class="vc-table-wrap"><table class="vc-table vc-table--compact guide-figures">
+          <caption>The four figures</caption>
+          <thead><tr><th scope="col">Figure</th><th scope="col">What it measures</th><th scope="col" class="vc-num">Cisco case</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Rebate at stake</th><td>What the company loses if nobody claims, then what is left once you approve an option</td><td class="vc-num"><span data-fig="stake">€2.14M</span>, then <span data-fig="rec-left">€0</span></td></tr>
+            <tr><th scope="row">Claim deadline</th><td>Days until the first claim lapses and the money is gone</td><td class="vc-num" data-fig="deadline">31 days</td></tr>
+            <tr><th scope="row">Detection → decision</th><td>Time from the tip to your approval, measured on this page</td><td class="vc-num"><span data-fig="decision-min">4 min</span> on the talk track</td></tr>
+            <tr><th scope="row">Session cost</th><td>Model fees for the agent's run: estimated here, measured in a live run</td><td class="vc-num">≈&nbsp;<span data-fig="lead-estimate">€0.14</span></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+      <section class="vc-guide__chapter" data-vc-chapter="real" data-vc-nav="What is real">
+        <h3>The company is fictional, the supplier groups are real</h3>
+        <p class="vc-guide__lead">GlobalCorp SE, its accounts, purchases and agreements are invented. Cisco, Microsoft and the other groups, their acquisitions and the dates are public facts. An engine computes every euro and day.</p>
+        <div class="vc-table-wrap"><table class="vc-table vc-table--compact">
+          <caption>Where everything comes from</caption>
+          <tbody>
+            <tr><th scope="row">Fictional</th><td>GlobalCorp SE: 3 sites, 161 supplier accounts, 1,320 orders and 8 rebate agreements, in 6 cases</td></tr>
+            <tr><th scope="row">Real</th><td>The supplier groups and their acquisitions, the engine's arithmetic and, with your key, Claude itself</td></tr>
+            <tr><th scope="row">Written for the replay</th><td>The agent's words and its web sources, marked as representative</td></tr>
+            <tr><th scope="row">Nothing is sent</th><td>Claims and changes stay drafts until you approve them, and even then go nowhere</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+      <section class="vc-guide__chapter" data-vc-chapter="present" data-vc-nav="How to present">
+        <h3>Show it in five minutes</h3>
+        <p class="vc-guide__lead">It plays by itself and stops where you act; Space pauses while you talk.</p>
+        <ol class="vc-guide__path">
+          <li><strong>Spot. It starts by itself; point at the four figures.</strong> <span class="vc-guide__say">“<span data-fig="stake">€2.14M</span> in rebates at stake, and the first claim lapses in <span data-fig="deadline">31 days</span>.”</span> <span class="vc-guide__time">1 min</span></li>
+          <li><strong>Check. Who really belongs to Cisco?</strong> <span class="vc-guide__say">“The tip names two acquired companies. The register finds a third, <span data-fig="found">Splunk</span>.”</span> <span class="vc-guide__time">1 min</span></li>
+          <li><strong>Calculate. The first count was wrong.</strong> <span class="vc-guide__say">“With the two from the tip, Cisco reaches <span data-fig="first-spend">€48M</span>, short of <span data-fig="threshold">€50M</span>: <span data-fig="first-stake">€0</span>. With Splunk, <span data-fig="spend">€52.4M</span>: <span data-fig="owed">€1.05M</span> owed for the closed year, <span data-fig="stake">€2.14M</span> with this year's.”</span> <span class="vc-guide__time">1 min</span></li>
+          <li><strong>Propose. Press Approve option <span data-fig="rec-letter">A</span>.</strong> <span class="vc-guide__say">“For <span data-fig="rec-cost">€17,100</span> we claim all of it. A person decides, in about <span data-fig="decision-min">4 min</span>.”</span> <span class="vc-guide__time">1 min</span></li>
+          <li><strong>Prepare. Press Approve both.</strong> <span class="vc-guide__say">“Two drafts wait for a person; nothing is sent. Live, this costs about <span data-fig="lead-estimate">€0.14</span>.”</span> <span class="vc-guide__time">1 min</span></li>
+        </ol>
+      </section>
+    </div>
+    <footer class="vc-dialog__footer vc-guide__footer">
+      <span class="vc-guide__count"></span>
+      <button type="button" class="vc-button vc-button--ghost" data-vc-guide-back><span class="vc-icon vc-icon--chevron-left" aria-hidden="true"></span>Back</button>
+      <button type="button" class="vc-button" data-vc-guide-next data-vc-guide-done="Start">Next<span class="vc-icon vc-icon--chevron-right" aria-hidden="true"></span></button>
+    </footer>
+  </dialog>
 
-  <div id="banners" class="banner-stack"></div>
+  <!-- Start agent: the free simulation first, or a live run on the visitor's own key. js/live.js loads the
+       agent only when a live run starts. -->
+  <dialog class="vc-dialog start-dialog" id="start-dialog" aria-labelledby="start-title">
+    <header class="vc-dialog__header">
+      <h2 class="vc-dialog__title" id="start-title">Start the agent</h2>
+      <button type="button" class="vc-icon-button" data-vc-close aria-label="Close"><span class="vc-icon vc-icon--close" aria-hidden="true"></span></button>
+    </header>
+    <div class="vc-dialog__body start-choices">
+      <section class="start-card" aria-labelledby="start-sim-title">
+        <h3 id="start-sim-title"><span class="vc-icon vc-icon--cube" aria-hidden="true"></span>Simulation</h3>
+        <p>A replay of the agent's run on the same data: the company's records and the engine answer for real. Free, no API key: the presenter's path.</p>
+        <button type="button" class="vc-button" id="start-sim"><span class="vc-icon vc-icon--play" aria-hidden="true"></span>Run the simulation</button>
+      </section>
+      <section class="start-card start-card--live" aria-labelledby="start-live-title">
+        <h3 id="start-live-title"><span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>Live run</h3>
+        <p>Claude <span data-fig="model">Sonnet 5.5</span> takes the same five steps with web search, on your own Anthropic API key, for about <span data-fig="estimate">€0.14</span>. The key stays in this tab and goes only to api.anthropic.com. A run stops at 40 model calls or €3, and nothing is sent without your approval.</p>
+        <form class="key-form" id="key-form" novalidate>
+          <label class="vc-label" for="key-input">Your API key</label>
+          <input class="vc-input" id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" aria-describedby="key-error" data-1p-ignore data-lpignore="true" data-bwignore="true">
+          <p class="vc-help key-error" id="key-error" role="alert" hidden></p>
+          <div class="key-actions">
+            <button type="submit" class="vc-button vc-button--secondary" id="start-live" data-vc-live><span class="vc-icon vc-icon--key" aria-hidden="true"></span>Check key and start</button>
+            <span class="vc-tag vc-tag--feature ai-notice"><span class="vc-icon vc-icon--sparkle" aria-hidden="true"></span>You are interacting with an AI system</span>
+            <button type="button" class="vc-button vc-button--ghost" id="key-forget" hidden>Forget key</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </dialog>
 
-  <!-- Boot screen: removed by js/main.js once the workspace is running. Without JavaScript modules
-       (for example when opened from disk via file://) it stays and explains what to do. -->
+  <!-- Boot screen: removed by js/main.js once the case has played up to its decision. Opened from disk
+       (file://), where browsers block program modules, it stays and says what to do. -->
   <div id="boot" class="boot" data-state="loading">
     <div class="boot-card">
-      <div class="boot-brand">
-        <span class="vc-cell vc-cell--lilac vc-cell--xl" aria-hidden="true"><span class="vc-icon vc-icon--search"></span></span>
-        <span class="brand-name">Rebate Hunter</span>
-      </div>
-      <p class="boot-status" role="status" aria-live="polite"><span class="vc-spinner" aria-hidden="true"></span><span id="boot-status">Starting Rebate Hunter…</span></p>
+      <p class="boot-brand"><span class="vc-cell vc-cell--lilac vc-cell--xl" aria-hidden="true"><span class="vc-icon vc-icon--search"></span></span>Rebate Hunter</p>
+      <p class="boot-status" role="status"><span class="vc-spinner" aria-hidden="true"></span><span id="boot-status">Reading Cisco's agreement…</span></p>
       <p id="boot-detail" class="vc-alert vc-alert--danger boot-detail" hidden></p>
-      <div class="boot-help">
-        <p>Still on this screen? Rebate Hunter has to be served over http or https. Browsers block its program modules when <code>index.html</code> is opened straight from disk, at an address starting with <code>file://</code>.</p>
-        <p>To run it on your computer, open a terminal in this folder, run <code>python -m http.server 8000</code>, then open <code>http://localhost:8000</code>. Published on GitHub Pages, it works as is. Use a current Chrome or Edge.</p>
-      </div>
+      <p class="boot-help">Still on this screen? Serve the folder over http, for example with <code>python -m http.server 8000</code>, and open <code>http://localhost:8000</code>. Browsers don't run its modules from a file.</p>
       <noscript><p class="boot-detail">Rebate Hunter needs JavaScript. Allow it for this site and reload the page.</p></noscript>
     </div>
   </div>
