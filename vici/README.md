@@ -1,7 +1,7 @@
 # Vici, copied into this prototype
 
 These files come unchanged from Vici, Victor Pflüger's design system
-(<https://victorpflueger.github.io/ViciDesign/index.html>), from its main branch at commit **`2c8c2ba`**
+(<https://victorpflueger.github.io/ViciDesign/index.html>), from its main branch at commit **`4bf5d68`**
 (22 November 2026), on the way to Vici 2.0: the How it works guide (`vc-guide`), the 2.0 byline, key
 figures that answer first with `vc-stat__was`, Presenting step by step with Play, Your turn, `vc-attention`
 and `--vc-step-fill`, the AI notice, and two rules this prototype added: Names, not record ids
