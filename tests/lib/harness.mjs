@@ -1,10 +1,12 @@
-// Shared test harness: finds Playwright and serves the app folder over HTTP. The app needs no CDN
-// and no tiles, so every external request in a test is either answered by a fixture or blocked.
+// Shared test harness: finds Playwright, serves the app folder over HTTP and opens the page. The page
+// loads nothing from a third party and reaches only api.anthropic.com, and only in a live run, so every
+// external request in a test is either answered by the stand-in API or blocked.
 import { createRequire } from "node:module";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { readFile, mkdir } from "node:fs/promises";
 
 /** The app folder: the parent of tests/. */
@@ -19,7 +21,7 @@ export const MIME = {
 export const CORS = { "access-control-allow-origin": "*", "access-control-expose-headers": "*" };
 
 /** Case names given on the command line (empty: run all cases). */
-export const ONLY = process.argv.slice(2);
+export const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 export const wanted = (name) => ONLY.length === 0 || ONLY.includes(name);
 
 /** Where screenshots, downloads and result files go (outside the app folder by default). */
@@ -51,8 +53,8 @@ export async function launchBrowser() {
 }
 
 /**
- * Serves `root` on 127.0.0.1:`port`. Paths in `blockLocal` (prefixes) answer 404, to simulate a
- * missing file. Returns { base, blockLocal, close }.
+ * Serves `root` on 127.0.0.1:`port` (0: any free port). Paths in `blockLocal` (prefixes) answer 404,
+ * to simulate a missing file. Returns { base, blockLocal, close }.
  */
 export async function serveStatic(root, port) {
   const blockLocal = new Set();
@@ -74,7 +76,7 @@ export async function serveStatic(root, port) {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
   });
-  return { base: `http://127.0.0.1:${port}/`, blockLocal, close: () => new Promise((r) => server.close(r)) };
+  return { base: `http://127.0.0.1:${server.address().port}/`, blockLocal, close: () => new Promise((r) => server.close(r)) };
 }
 
 /** Console noise that blocked external requests cause in every test. */
@@ -83,11 +85,40 @@ export const NETWORK_NOISE = /Failed to load resource|net::ERR_|ERR_BLOCKED_BY_C
 /** A key-shaped string that is obviously not a real key. */
 export const MOCK_KEY = "sk-ant-test-MOCKKEY-0123456789abcdefghijklmnopqrstuvwxyz0123456789";
 
-/**
- * Init script for browser contexts: marks the intro window as seen, so it does not open by itself
- * and cover the controls. The smoke suite's "intro" case runs without it.
- */
-export const SKIP_INTRO = () => { try { localStorage.setItem("rh.introSeen", "1"); } catch { /* file:// or blocked storage */ } };
+/** Browser storage key of the session's API key (js/config.js STORAGE.apiKey): sessionStorage only. */
+export const KEYS = { apiKey: "rh.anthropic.key" };
 
-/** Browser storage keys of the app (js/config.js STORAGE), for tests that inspect storage. */
-export const KEYS = { apiKey: "rh.anthropic.key", introSeen: "rh.introSeen", diagnostics: "rh.diag" };
+/** --require-vici (or GitHub Actions): a missing ViciDesign checkout fails instead of skipping. */
+export const REQUIRE_VICI = process.argv.includes("--require-vici") || process.env.GITHUB_ACTIONS === "true";
+
+/** A ViciDesign checkout: the folder in VICI_DIR, or ../ViciDesign next to this repository. */
+export function viciDir() {
+  return [process.env.VICI_DIR, path.resolve(APP_ROOT, "..", "ViciDesign"), path.resolve(APP_ROOT, "..", "vicidesign")].filter(Boolean).find((d) => existsSync(path.join(d, "scripts", "lib", "guide.mjs"))) || null;
+}
+
+/**
+ * A page of the app in a fresh browser context: every request to another host is aborted and listed
+ * in page.external, page errors and console errors in page.errors. dark: the visitor's dark choice,
+ * made before the page loads (the page opens light otherwise). Waits until the case has played up to
+ * the person's first decision (html[data-boot="ready"]).
+ */
+export async function openApp(browser, base, { width = 1280, height = 720, dark = false, query = "", route = null } = {}) {
+  const context = await browser.newContext({ viewport: { width, height } });
+  if (dark) await context.addInitScript(() => { try { localStorage.setItem("vc-theme", "dark"); } catch { /* no storage */ } });
+  const page = await context.newPage();
+  page.external = [];
+  page.errors = [];
+  const origin = new URL(base).origin;
+  await context.route("**/*", async (r) => {
+    const u = r.request().url();
+    if (u.startsWith(origin) || u.startsWith("data:") || u.startsWith("blob:")) return r.continue();
+    if (route && (await route(r))) return;
+    page.external.push(u);
+    return r.abort("blockedbyclient");
+  });
+  page.on("pageerror", (e) => page.errors.push(String(e.message || e)));
+  page.on("console", (m) => { if (m.type() === "error" && !NETWORK_NOISE.test(m.text())) page.errors.push(m.text()); });
+  await page.goto(base + query);
+  await page.waitForSelector('html[data-boot="ready"]', { timeout: 20000 });
+  return page;
+}
