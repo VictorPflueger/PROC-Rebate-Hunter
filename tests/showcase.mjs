@@ -88,7 +88,7 @@ if (run("first")) {
     const intro = document.querySelector("header + .intro");
     return {
       guideOpen: document.querySelector("dialog.vc-guide").open,
-      tiles: [...document.querySelectorAll("[data-vc-kpi]")].map((t) => `${t.dataset.vcKpi}=${t.querySelector(".kpi-value").textContent.trim()}`),
+      tiles: [...document.querySelectorAll("[data-vc-kpi]")].map((t) => `${t.dataset.vcKpi}=${t.querySelector(".kpi-value").textContent.replace(/\s+/g, " ").trim()}`),
       name: document.querySelector(".brand-name")?.textContent.trim(), cell: !!document.querySelector(".brand .vc-cell .vc-icon--search"),
       mode: document.querySelector("#mode-text")?.textContent.trim(), how: how?.innerText.trim(), howWidth: how?.getBoundingClientRect().width || 0,
       toggle: !!document.querySelector("header [data-vc-theme-toggle]"),
@@ -173,7 +173,8 @@ if (run("play")) {
   await waitStep(p, "prepare", 20000).catch(() => problems.push("after the approval Play did not go on to Prepare"));
   await p.waitForTimeout(1200);
   await p.click("#move button.vc-attention").catch(() => problems.push("no action at the drafts"));
-  await p.waitForTimeout(15000);
+  // The story is over once the drafts are approved: the button offers Replay at once, as the bar does.
+  await p.waitForTimeout(4000);
   if ((await state()).play !== "Replay") problems.push(`at the end the button reads "${(await state()).play}", not Replay`);
   if (p.external.length || p.errors.length) problems.push(`requests ${p.external.join(", ")} errors ${p.errors.join(" | ")}`);
   await p.context().close();

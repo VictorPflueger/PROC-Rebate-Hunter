@@ -166,7 +166,7 @@ function start() {
     } else {
       // The page is written with the lead case's estimate; another case waits for its own.
       const e = estimates.get(S.scenario.id);
-      if (e) shell.setKpi("Session cost", { value: `≈ ${cents(e.eur)}`, note: "estimated for a live run", tone: "" });
+      if (e) shell.setKpi("Session cost", { value: `≈\u00a0${cents(e.eur)}`, note: "estimated for a live run", tone: "" });
       else if (S.scenario.id !== UI.defaultScenario) shell.setKpi("Session cost", { value: "…", note: "estimated for a live run", tone: "" });
     }
   }
@@ -288,7 +288,8 @@ function start() {
       if (holding) {
         P.at = 0;
       } else if (!next) {
-        // The last step, read: the story is over, and the button offers Replay.
+        // The last step: once the story is over the button offers Replay at once; until then it is read.
+        if (finished()) { fill(0); pause(); return; }
         if (!covered()) P.at += dt;
         if (P.at >= step.read) { fill(0); pause(); return; }
       } else if (next.ready && !covered()) {

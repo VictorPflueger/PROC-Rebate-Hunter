@@ -252,7 +252,8 @@ html { font-size: clamp(100%, 0.48vw + 50%, 112.5%); }
 .draft[data-status="rejected"] { background: var(--vc-surface); border-color: var(--vc-border-subtle); }
 .draft[data-status="rejected"] :is(.draft-subject, .draft-status) { color: var(--vc-text-muted); }
 .summary { padding: 10px 14px; background: var(--vc-feature-bg); border: 1px solid var(--vc-feature-border); border-radius: var(--vc-radius-md); font-size: var(--vc-font-size-sm); line-height: 1.45; }
-.summary > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.summary > summary { width: fit-content; cursor: pointer; }
+.summary > summary .vc-tag { margin-left: 10px; vertical-align: middle; }
 .summary h3 { margin: 8px 0 4px; font-size: var(--vc-font-size-md); }
 .summary p { margin: 0 0 6px; }
 .summary .vc-table-wrap { margin: 4px 0 8px; background: var(--vc-surface); }
